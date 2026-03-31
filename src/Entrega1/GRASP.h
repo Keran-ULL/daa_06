@@ -20,17 +20,17 @@
 #include "../BusquedasLocales/SwapClientesLS.h"
 #include "../BusquedasLocales/SwapInstalacionesLS.h"
 #include "../BusquedasLocales/IncompatElimLS.h"
+
 #include <memory>
 #include <string>
 #include <limits>
 
-/// Qué búsqueda(s) local(es) aplicar — debe coincidir con Helper::LocalSearchChoice
 enum class LocalSearchChoice {
-    SHIFT    = 1,
-    SWAP_CLI = 2,
-    SWAP_INST= 3,
-    INCOMPAT = 4,
-    ALL      = 5
+    SHIFT     = 1,
+    SWAP_CLI  = 2,
+    SWAP_INST = 3,
+    INCOMPAT  = 4,
+    ALL       = 5
 };
 
 class GRASP : public Metaheuristic {
@@ -42,13 +42,15 @@ public:
                    unsigned int      seed          = 0,
                    ShiftLS::ImprovementStrategy strategy
                        = ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT,
-                   LocalSearchChoice lsChoice      = LocalSearchChoice::ALL)
+                   LocalSearchChoice lsChoice      = LocalSearchChoice::ALL,
+                   int               swapInstFreq  = 3)
         : Metaheuristic(inst, maxIterations, seed)
         , inst_(inst)
         , alpha_(alpha)
         , beta_(beta)
         , lsStrategy_(strategy)
         , lsChoice_(lsChoice)
+        , swapInstFreq_(swapInstFreq)
     {}
 
     std::string getName() const override {
@@ -63,7 +65,8 @@ public:
 
 protected:
     std::unique_ptr<Solution> solve() override {
-        // Construir solo las LS necesarias
+
+        // OPT 1: construir LS una sola vez — los cachés se pagan una vez
         ShiftLS             shiftLS  (inst_, lsStrategy_);
         SwapClientesLS      swapCliLS(inst_,
             static_cast<SwapClientesLS::ImprovementStrategy>(
@@ -75,17 +78,36 @@ protected:
             static_cast<IncompatElimLS::ImprovementStrategy>(
                 static_cast<int>(lsStrategy_)));
 
-        GRASPConstructive constructive(inst_, alpha_, beta_, seed_);
-
-        std::unique_ptr<Solution> best = nullptr;
-        double bestCost = std::numeric_limits<double>::infinity();
+        std::unique_ptr<Solution> best    = nullptr;
+        double                    bestCost = std::numeric_limits<double>::infinity();
 
         for (iterationsRun_ = 0; iterationsRun_ < maxIterations_; ++iterationsRun_) {
+
+            // OPT 2: semilla distinta por iteración → diversidad real
+            unsigned int iterSeed = seed_ + static_cast<unsigned int>(iterationsRun_);
+            GRASPConstructive constructive(inst_, alpha_, beta_, iterSeed);
             auto sol = constructive.run();
 
-            // Fase de mejora según elección del usuario
+            // OPT 3: SwapInstalaciones solo cada swapInstFreq_ iteraciones
+            bool applySwapInst = (swapInstFreq_ <= 0) ||
+                                 (iterationsRun_ % swapInstFreq_ == 0);
+
+            // Bucle de mejora: converge al óptimo local.
+            //
+            // BEST_IMPROVEMENT:  itera sin límite — cada llamada ya encontró
+            //   el mejor movimiento posible, pocas vueltas hasta convergencia.
+            //
+            // FIRST_IMPROVEMENT: itera hasta maxFirstIter vueltas — cada llamada
+            //   aplica el primer movimiento que mejora (barato por movimiento,
+            //   pero más vueltas). Se limita porque las últimas vueltas aportan
+            //   poco y cuestan igual que las primeras en exploración de vecindario.
+            const bool  isBest      = (lsStrategy_ == ShiftLS::ImprovementStrategy::BEST_IMPROVEMENT);
+            const int   maxFirstIter = 10;   // límite solo para FIRST_IMPROVEMENT
+            int  localIter  = 0;
             bool anyImproved = true;
-            while (anyImproved) {
+
+            while (anyImproved && (isBest || localIter < maxFirstIter)) {
+                ++localIter;
                 switch (lsChoice_) {
                     case LocalSearchChoice::SHIFT:
                         anyImproved = shiftLS.improve(*sol);
@@ -99,12 +121,23 @@ protected:
                     case LocalSearchChoice::INCOMPAT:
                         anyImproved = incompLS.improve(*sol);
                         break;
-                    case LocalSearchChoice::ALL:
-                        anyImproved  = shiftLS.improve(*sol);
-                        anyImproved |= swapCliLS.improve(*sol);
-                        anyImproved |= swapInstLS.improve(*sol);
-                        anyImproved |= incompLS.improve(*sol);
+                    case LocalSearchChoice::ALL: {
+                        // LS ordenadas de menor a mayor coste computacional.
+                        // SwapClientes (más costosa) solo si alguna de las
+                        // anteriores mejoró: si el resto no puede mejorar,
+                        // SwapClientes tampoco encontrará mejoras.
+                        bool imp1 = incompLS.improve(*sol);
+                        bool imp2 = shiftLS.improve(*sol);
+                        bool imp3 = applySwapInst
+                                    ? swapInstLS.improve(*sol)
+                                    : false;
+                        bool cheapImproved = imp1 || imp2 || imp3;
+                        bool imp4 = cheapImproved
+                                    ? swapCliLS.improve(*sol)
+                                    : false;
+                        anyImproved = imp1 || imp2 || imp3 || imp4;
                         break;
+                    }
                 }
             }
 
@@ -123,6 +156,7 @@ private:
     int                          beta_;
     ShiftLS::ImprovementStrategy lsStrategy_;
     LocalSearchChoice            lsChoice_;
+    int                          swapInstFreq_;
 
     std::string lsName() const {
         switch (lsChoice_) {
