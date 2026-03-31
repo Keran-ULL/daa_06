@@ -1,0 +1,68 @@
+  Opción: 2
+
+┌─ Modo de ejecución  [GRASP] ─────────┐
+│  1. Instancia individual                         │
+│  2. Benchmark (wlp01-wlp08, tabla a fichero)     │
+│  0. Volver                                       │
+└──────────────────────────────────────────────────┘
+  Opción: 2
+
+  --- Parámetros Benchmark ---
+  Directorio de instancias (ej: instances/): src/Instancias/Public/
+  Fichero de salida (ej: resultados.txt): resultados.txt
+  Iteraciones GRASP por ejecución (recomendado: 10): 10
+  Ejecuciones por configuración LRC (recomendado: 3): 3
+
+  Búsqueda local en fase de mejora:
+    1. ShiftLS              (reinserción de demanda)
+    2. SwapClientesLS       (intercambio de clientes)
+    3. SwapInstalacionesLS  (cierre/apertura instalación)
+    4. IncompatElimLS       (eliminación incompatibilidades)
+    5. Todas en secuencia
+  Opción: 1
+
+--- Algoritmo Voraz ---
+  wlp01.dzn... Coste=37044  Incomp=0  CPU=0.0048s
+  wlp02.dzn... Coste=70692  Incomp=0  CPU=0.0272s
+  wlp03.dzn... Coste=86783  Incomp=0  CPU=0.0670s
+  wlp04.dzn... Coste=103142  Incomp=0  CPU=0.1457s
+  wlp05.dzn... Coste=129480  Incomp=0  CPU=0.2687s
+  wlp06.dzn... Coste=150852  Incomp=0  CPU=0.4286s
+  wlp07.dzn... Coste=214023  Incomp=0  CPU=1.0737s
+  wlp08.dzn... Coste=249412  Incomp=0  CPU=2.0161s
+
+--- Algoritmo GRASP ---
+  wlp01.dzn  LRC=2  run=1... Coste=35576  Incomp=0  CPU=0.4984s
+  wlp01.dzn  LRC=2  run=2... Coste=35576  Incomp=0  CPU=0.4987s
+  wlp01.dzn  LRC=2  run=3... Coste=35576  Incomp=0  CPU=0.4968s
+  wlp01.dzn  LRC=3  run=1... Coste=35581  Incomp=0  CPU=1.0127s
+  wlp01.dzn  LRC=3  run=2... Coste=35581  Incomp=0  CPU=1.0146s
+  wlp01.dzn  LRC=3  run=3... Coste=35581  Incomp=0  CPU=1.0136s
+  wlp02.dzn  LRC=2  run=1... Coste=69620  Incomp=0  CPU=3.7651s
+  wlp02.dzn  LRC=2  run=2... Coste=69620  Incomp=0  CPU=3.7601s
+  wlp02.dzn  LRC=2  run=3... Coste=69620  Incomp=0  CPU=3.7929s
+  wlp02.dzn  LRC=3  run=1... Coste=69558  Incomp=0  CPU=6.8904s
+  wlp02.dzn  LRC=3  run=2... Coste=69558  Incomp=0  CPU=6.9225s
+  wlp02.dzn  LRC=3  run=3... Coste=69558  Incomp=0  CPU=6.9432s
+  wlp03.dzn  LRC=2  run=1... Coste=85035  Incomp=0  CPU=9.1807s
+  wlp03.dzn  LRC=2  run=2... Coste=85035  Incomp=0  CPU=9.1193s
+  wlp03.dzn  LRC=2  run=3... Coste=85035  Incomp=0  CPU=9.1391s
+  wlp03.dzn  LRC=3  run=1... Coste=87731  Incomp=0  CPU=18.2182s
+  wlp03.dzn  LRC=3  run=2... Coste=87731  Incomp=0  CPU=18.1763s
+  wlp03.dzn  LRC=3  run=3... Coste=87731  Incomp=0  CPU=19.9330s
+  wlp04.dzn  LRC=2  run=1... Coste=103879  Incomp=0  CPU=24.1665s
+  wlp04.dzn  LRC=2  run=2... Coste=103879  Incomp=0  CPU=24.3738s
+  wlp04.dzn  LRC=2  run=3... Coste=103879  Incomp=0  CPU=24.3645s
+  wlp04.dzn  LRC=3  run=1... Coste=106419  Incomp=0  CPU=56.9969s
+  wlp04.dzn  LRC=3  run=2... Coste=106419  Incomp=0  CPU=56.9618s
+  wlp04.dzn  LRC=3  run=3... Coste=106419  Incomp=0  CPU=57.6851s
+  wlp05.dzn  LRC=2  run=1... Coste=132835  Incomp=0  CPU=32.1420s
+  wlp05.dzn  LRC=2  run=2... Coste=132835  Incomp=0  CPU=32.1233s
+  wlp05.dzn  LRC=2  run=3... Coste=132835  Incomp=0  CPU=32.2234s
+  wlp05.dzn  LRC=3  run=1... Coste=132550  Incomp=0  CPU=86.9213s
+  wlp05.dzn  LRC=3  run=2... Coste=132550  Incomp=0  CPU=87.6876s
+  wlp05.dzn  LRC=3  run=3... Coste=132550  Incomp=0  CPU=87.6535s
+  wlp06.dzn  LRC=2  run=1... Coste=139871  Incomp=0  CPU=80.7379s
+  wlp06.dzn  LRC=2  run=2... Coste=139871  Incomp=0  CPU=82.5959s
+  wlp06.dzn  LRC=2  run=3... Coste=139871  Incomp=0  CPU=82.7423s
+  wlp06.dzn  LRC=3  run=1... 

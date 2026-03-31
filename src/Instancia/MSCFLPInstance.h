@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "Instance.h"
+#include "../Plantillas/Instance.h"
 
 #include <vector>
 #include <string>
@@ -27,6 +27,7 @@
 
 class MSCFLPInstance : public Instance {
 public:
+
     /// Par de clientes incompatibles (ambos índices 0-based).
     using IncompatPair = std::pair<int, int>;
 
@@ -62,7 +63,7 @@ public:
         int numPairs = parseScalar(content, "Incompatibilities");
         incompatiblePairs_ = parsePairs(content, "IncompatiblePairs");
 
-        // El número de pares debe coincidir con Incompatibilities
+        // Sanity check: el número de pares debe coincidir con Incompatibilities
         if (static_cast<int>(incompatiblePairs_.size()) != numPairs) {
             throw std::runtime_error(
                 "MSCFLPInstance::load: número de pares incompatibles (" +
@@ -80,33 +81,42 @@ public:
 
     /**
      * @brief  Validación semántica básica de la instancia cargada.
-     * @return true si todos los datos son coherentes.
+     * @throws std::logic_error si algún parámetro es inconsistente.
      */
-    bool validate() const override {
+    void validate() const override {
         requireLoaded();
 
-        if (m_ <= 0 || n_ <= 0) return false;
-        if (static_cast<int>(capacity_.size())      != m_) return false;
-        if (static_cast<int>(fixedCost_.size())     != m_) return false;
-        if (static_cast<int>(demand_.size())        != n_) return false;
-        if (static_cast<int>(transportCost_.size()) != n_) return false;
+        auto fail = [](const std::string& msg) {
+            throw std::logic_error("MSCFLPInstance::validate: " + msg);
+        };
+
+        if (m_ <= 0 || n_ <= 0)
+            fail("m y n deben ser positivos");
+        if (static_cast<int>(capacity_.size())      != m_) fail("tamaño de Capacity incorrecto");
+        if (static_cast<int>(fixedCost_.size())     != m_) fail("tamaño de FixedCost incorrecto");
+        if (static_cast<int>(demand_.size())        != n_) fail("tamaño de Goods incorrecto");
+        if (static_cast<int>(transportCost_.size()) != n_) fail("número de filas de SupplyCost incorrecto");
 
         for (auto& row : transportCost_)
-            if (static_cast<int>(row.size()) != m_) return false;
+            if (static_cast<int>(row.size()) != m_)
+                fail("número de columnas de SupplyCost incorrecto");
 
-        // Capacidades y demandas deben ser positivas
-        for (double s : capacity_)  if (s <= 0) return false;
-        for (double d : demand_)    if (d <= 0) return false;
-        for (double f : fixedCost_) if (f <  0) return false;
+        for (double s : capacity_)  if (s <= 0)  fail("capacidad no positiva");
+        for (double d : demand_)    if (d <= 0)  fail("demanda no positiva");
+        for (double f : fixedCost_) if (f <  0)  fail("coste fijo negativo");
 
-        // Pares deben ser válidos (0-based)
         for (auto& [i1, i2] : incompatiblePairs_) {
-            if (i1 < 0 || i1 >= n_) return false;
-            if (i2 < 0 || i2 >= n_) return false;
-            if (i1 == i2)           return false;
+            if (i1 < 0 || i1 >= n_ || i2 < 0 || i2 >= n_ || i1 == i2)
+                fail("par incompatible fuera de rango");
         }
+    }
 
-        return true;
+    /**
+     * @brief  Versión que devuelve bool (para uso interno sin excepciones).
+     */
+    bool isValid() const noexcept {
+        try { validate(); return true; }
+        catch (...) { return false; }
     }
 
     /**
@@ -309,8 +319,6 @@ private:
             int rows, int cols)
     {
         std::string rhs = extractRHS(content, key);
-
-        // El valor tiene la forma: [|r0c0,r0c1,...|r1c0,...|...|]
         // Eliminar el par [| ... |]
         size_t lb = rhs.find("[|");
         size_t rb = rhs.rfind("|]");
@@ -424,6 +432,7 @@ private:
         std::istringstream ss(str);
         std::string token;
         while (std::getline(ss, token, ',')) {
+            // Eliminar espacios y saltos de línea
             token.erase(std::remove_if(token.begin(), token.end(),
                         [](char c){ return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }),
                         token.end());

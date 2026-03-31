@@ -13,10 +13,10 @@
 
 #pragma once
 
-#include "MSCFLPInstance.h"
-#include "MSCFLPSolution.h"
-#include "Greedy.h"
-#include "GRASP.h"
+#include "../Instancia/MSCFLPInstance.h"
+#include "../Solucion/MSCFLPSolution.h"
+#include "../Algoritmo/Greedy.h"
+#include "../Entrega1/GRASP.h"
 
 #include <string>
 #include <vector>
@@ -31,21 +31,29 @@ class BenchmarkRunner {
 public:
 
     struct Config {
-        std::string instancesDir  = "instances/";   ///< Directorio de ficheros .dzn
-        std::string outputFile    = "resultados.txt"; ///< Fichero de salida
-        int         graspIter     = 10;              ///< Iteraciones GRASP por ejecución
-        std::vector<int> lrcSizes = {2, 3};          ///< Tamaños de LRC a probar
-        int         graspRuns     = 3;               ///< Ejecuciones por configuración LRC
-        unsigned int seed         = 42;              ///< Semilla reproducible
+        std::string       instancesDir  = "instances/";
+        std::string       outputFile    = "resultados.txt";
+        int               graspIter     = 10;
+        std::vector<int>  lrcSizes      = {2, 3};
+        int               graspRuns     = 3;
+        unsigned int      seed          = 42;
+        LocalSearchChoice lsChoice      = LocalSearchChoice::ALL;
     };
 
-    explicit BenchmarkRunner(const Config& cfg = Config{})
+    /** @brief Construcción con configuración completa. */
+    explicit BenchmarkRunner(const Config& cfg)
         : cfg_(cfg)
     {}
 
-    // Construcción rápida con directorio y fichero de salida
+    /** @brief Construcción con valores por defecto. */
+    BenchmarkRunner()
+        : cfg_{}
+    {}
+
+    /** @brief Construcción rápida con directorio y fichero de salida. */
     BenchmarkRunner(const std::string& instancesDir,
                     const std::string& outputFile)
+        : cfg_{}
     {
         cfg_.instancesDir = instancesDir;
         cfg_.outputFile   = outputFile;
@@ -161,7 +169,9 @@ private:
                               << "  run=" << run << "... " << std::flush;
 
                     unsigned int runSeed = cfg_.seed + static_cast<unsigned int>(run * 1000);
-                    GRASP grasp(inst, cfg_.graspIter, lrc, lrc, runSeed);
+                    GRASP grasp(inst, cfg_.graspIter, lrc, lrc, runSeed,
+                               ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT,
+                               cfg_.lsChoice);
                     auto sol = grasp.run();
                     auto& mSol = dynamic_cast<MSCFLPSolution&>(*sol);
 

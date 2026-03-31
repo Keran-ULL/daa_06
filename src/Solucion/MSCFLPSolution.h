@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "Solution.h"
-#include "MSCFLPInstance.h"   // forward-declarado abajo; incluir el .h completo
+#include "../Plantillas/Solution.h"
+#include "../Instancia/MSCFLPInstance.h"   // forward-declarado abajo; incluir el .h completo
 
 #include <vector>
 #include <string>

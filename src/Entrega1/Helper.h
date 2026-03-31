@@ -35,6 +35,15 @@ enum class ImprovStrategy {
     FIRST_IMPROVEMENT = 2
 };
 
+/// Qué búsqueda(s) local(es) aplicar en la fase de mejora del GRASP
+enum class LocalSearchChoice {
+    SHIFT       = 1,   ///< Solo ShiftLS
+    SWAP_CLI    = 2,   ///< Solo SwapClientesLS
+    SWAP_INST   = 3,   ///< Solo SwapInstalacionesLS
+    INCOMPAT    = 4,   ///< Solo IncompatElimLS
+    ALL         = 5    ///< Las 4 en secuencia
+};
+
 inline void printBanner() {
     std::cout << "\n"
               << "╔══════════════════════════════════════════════════════╗\n"
@@ -43,7 +52,6 @@ inline void printBanner() {
               << "║   Problem with Customer Incompatibilities            ║\n"
               << "╚══════════════════════════════════════════════════════╝\n\n";
 }
-
 
 /**
  * @brief  Lee un entero desde stdin. Repite hasta que la entrada sea válida
@@ -125,12 +133,24 @@ inline int askGreedySlack() {
 }
 
 struct GRASPParams {
-    int          iterations;
-    int          alpha;
-    int          beta;
-    unsigned int seed;
-    ImprovStrategy strategy;
+    int              iterations;
+    int              alpha;
+    int              beta;
+    unsigned int     seed;
+    ImprovStrategy   strategy;
+    LocalSearchChoice lsChoice;
 };
+
+inline LocalSearchChoice askLocalSearch() {
+    std::cout << "\n  Búsqueda local en fase de mejora:\n"
+              << "    1. ShiftLS              (reinserción de demanda)\n"
+              << "    2. SwapClientesLS       (intercambio de clientes)\n"
+              << "    3. SwapInstalacionesLS  (cierre/apertura instalación)\n"
+              << "    4. IncompatElimLS       (eliminación incompatibilidades)\n"
+              << "    5. Todas en secuencia\n";
+    int opt = readInt("  Opción: ", 1, 5);
+    return static_cast<LocalSearchChoice>(opt);
+}
 
 inline GRASPParams askGRASPParams() {
     GRASPParams p;
@@ -138,24 +158,22 @@ inline GRASPParams askGRASPParams() {
     p.iterations = readInt("  Iteraciones (recomendado: 10-50): ", 1, 10000);
     p.alpha      = readInt("  Tamaño LRC fase 1 / alpha (2-5): ", 1, 20);
     p.beta       = readInt("  Tamaño LRC fase 2 / beta  (2-5): ", 1, 20);
-
     std::cout << "  Semilla RNG (0 = aleatoria): ";
-    p.seed = static_cast<unsigned int>(readInt("", 0, 999999));
-
+    p.seed       = static_cast<unsigned int>(readInt("", 0, 999999));
     std::cout << "  Estrategia de mejora:\n"
               << "    1. Mejor mejora  (mejor calidad, más lento)\n"
               << "    2. Primera mejora (más rápido)\n";
-    int s = readInt("  Opción: ", 1, 2);
-    p.strategy = static_cast<ImprovStrategy>(s);
-
+    p.strategy   = static_cast<ImprovStrategy>(readInt("  Opción: ", 1, 2));
+    p.lsChoice   = askLocalSearch();
     return p;
 }
 
 struct BenchmarkParams {
-    std::string instancesDir;
-    std::string outputFile;
-    int         graspIter;
-    int         graspRuns;
+    std::string      instancesDir;
+    std::string      outputFile;
+    int              graspIter;
+    int              graspRuns;
+    LocalSearchChoice lsChoice;
 };
 
 inline BenchmarkParams askBenchmarkParams() {
@@ -164,9 +182,10 @@ inline BenchmarkParams askBenchmarkParams() {
     p.instancesDir = readString("  Directorio de instancias (ej: instances/): ");
     if (p.instancesDir.back() != '/' && p.instancesDir.back() != '\\')
         p.instancesDir += '/';
-    p.outputFile  = readString("  Fichero de salida (ej: resultados.txt): ");
-    p.graspIter   = readInt("  Iteraciones GRASP por ejecución (recomendado: 10): ", 1, 1000);
-    p.graspRuns   = readInt("  Ejecuciones por configuración LRC (recomendado: 3): ", 1, 20);
+    p.outputFile = readString("  Fichero de salida (ej: resultados.txt): ");
+    p.graspIter  = readInt("  Iteraciones GRASP por ejecución (recomendado: 10): ", 1, 1000);
+    p.graspRuns  = readInt("  Ejecuciones por configuración LRC (recomendado: 3): ", 1, 20);
+    p.lsChoice   = askLocalSearch();
     return p;
 }
 

@@ -12,13 +12,29 @@
  * @version 1.0
  */
 
-#include "Helper.h"
-#include "MSCFLPInstance.h"
-#include "MSCFLPSolution.h"
-#include "Greedy.h"
-#include "GRASP.h"
-#include "BenchmarkRunner.h"
+/**
+ * @file   main.cpp
+ * @brief  Programa cliente para el MS-CFLP-CI.
+ *
+ * Permite al usuario:
+ *   1. Ejecutar el Algoritmo Voraz sobre una instancia individual.
+ *   2. Ejecutar GRASP sobre una instancia individual.
+ *   3. Lanzar el benchmark sobre wlp01-wlp08 (ambos algoritmos)
+ *      y guardar los resultados en un fichero de texto tabulado.
+ *
+ * Compilación (C++17 requerido por std::filesystem):
+ *   g++ -std=c++17 -O2 -o mscflpci main.cpp
+ *
+ * @author  DAA 2025-2026
+ * @version 1.0
+ */
 
+#include "Entrega1/Helper.h"
+#include "Instancia/MSCFLPInstance.h"
+#include "Solucion/MSCFLPSolution.h"
+#include "Algoritmo/Greedy.h"
+#include "Entrega1/GRASP.h"
+#include "Entrega1/BenchmarkRunner.h"
 #include <iostream>
 #include <iomanip>
 #include <memory>
@@ -81,7 +97,10 @@ static void runGRASPSingle() {
                     ? ShiftLS::ImprovementStrategy::BEST_IMPROVEMENT
                     : ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT;
 
-    GRASP grasp(inst, p.iterations, p.alpha, p.beta, p.seed, strategy);
+    auto lsChoice = static_cast<LocalSearchChoice>(
+                        static_cast<int>(p.lsChoice));
+
+    GRASP grasp(inst, p.iterations, p.alpha, p.beta, p.seed, strategy, lsChoice);
     auto sol = grasp.run();
     auto& mSol = dynamic_cast<MSCFLPSolution&>(*sol);
 
@@ -98,6 +117,8 @@ static void runBenchmark() {
     cfg.graspRuns    = bp.graspRuns;
     cfg.lrcSizes     = {2, 3};
     cfg.seed         = 42;
+    cfg.lsChoice     = static_cast<LocalSearchChoice>(
+                           static_cast<int>(bp.lsChoice));
 
     BenchmarkRunner runner(cfg);
     try {

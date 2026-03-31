@@ -14,9 +14,9 @@
  */
 #pragma once
 
-#include "Algorithm.h"
-#include "MSCFLPInstance.h"
-#include "MSCFLPSolution.h"
+#include "../Plantillas/Algorithm.h"
+#include "../Instancia/MSCFLPInstance.h"
+#include "../Solucion/MSCFLPSolution.h"
 
 #include <vector>
 #include <algorithm>

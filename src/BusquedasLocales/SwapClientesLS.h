@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "Algorithm.h"
-#include "MSCFLPInstance.h"
-#include "MSCFLPSolution.h"
+#include "../Plantillas/Algorithm.h"
+#include "../Instancia/MSCFLPInstance.h"
+#include "../Solucion/MSCFLPSolution.h"
 
 #include <vector>
 #include <limits>
@@ -62,7 +62,6 @@ public:
 private:
     const MSCFLPInstance& inst_;
     ImprovementStrategy   strategy_;
-
     struct SwapMove {
         int    i1, i2;          // clientes a intercambiar
         int    ja, jb;          // ja = instalación de i1, jb = instalación de i2
@@ -71,30 +70,31 @@ private:
     };
 
     bool applyBest(MSCFLPSolution& sol) {
-        const int n = inst_.getN();
         const int m = inst_.getM();
 
         SwapMove best;
         best.delta = -1e-9;
         bool found = false;
 
-        for (int i1 = 0; i1 < n; ++i1) {
-            const double d1 = inst_.getDemand(i1);
-            for (int ja = 0; ja < m; ++ja) {
-                if (!sol.isServedBy(i1, ja)) continue;
-                const double qa = sol.getX(i1, ja) * d1;
+        for (int ja = 0; ja < m; ++ja) {
+            if (!sol.isOpen(ja)) continue;
+            const auto& clientsA = sol.getClientsOf(ja);
 
-                for (int i2 = i1 + 1; i2 < n; ++i2) {
-                    const double d2 = inst_.getDemand(i2);
-                    for (int jb = 0; jb < m; ++jb) {
-                        if (jb == ja) continue;
-                        if (!sol.isServedBy(i2, jb)) continue;
+            for (int jb = ja + 1; jb < m; ++jb) {
+                if (!sol.isOpen(jb)) continue;
+                const auto& clientsB = sol.getClientsOf(jb);
+
+                for (int i1 : clientsA) {
+                    const double d1 = inst_.getDemand(i1);
+                    const double qa = sol.getX(i1, ja) * d1;
+
+                    for (int i2 : clientsB) {
+                        const double d2 = inst_.getDemand(i2);
                         const double qb = sol.getX(i2, jb) * d2;
 
                         double delta;
                         if (!isFeasibleSwap(sol, i1, i2, ja, jb, qa, qb, delta))
                             continue;
-
                         if (delta < best.delta) {
                             best = {i1, i2, ja, jb, qa, qb, delta};
                             found = true;
@@ -110,26 +110,27 @@ private:
     }
 
     bool applyFirst(MSCFLPSolution& sol) {
-        const int n = inst_.getN();
         const int m = inst_.getM();
 
-        for (int i1 = 0; i1 < n; ++i1) {
-            const double d1 = inst_.getDemand(i1);
-            for (int ja = 0; ja < m; ++ja) {
-                if (!sol.isServedBy(i1, ja)) continue;
-                const double qa = sol.getX(i1, ja) * d1;
+        for (int ja = 0; ja < m; ++ja) {
+            if (!sol.isOpen(ja)) continue;
+            const auto& clientsA = sol.getClientsOf(ja);
 
-                for (int i2 = i1 + 1; i2 < n; ++i2) {
-                    const double d2 = inst_.getDemand(i2);
-                    for (int jb = 0; jb < m; ++jb) {
-                        if (jb == ja) continue;
-                        if (!sol.isServedBy(i2, jb)) continue;
+            for (int jb = ja + 1; jb < m; ++jb) {
+                if (!sol.isOpen(jb)) continue;
+                const auto& clientsB = sol.getClientsOf(jb);
+
+                for (int i1 : clientsA) {
+                    const double d1 = inst_.getDemand(i1);
+                    const double qa = sol.getX(i1, ja) * d1;
+
+                    for (int i2 : clientsB) {
+                        const double d2 = inst_.getDemand(i2);
                         const double qb = sol.getX(i2, jb) * d2;
 
                         double delta;
                         if (!isFeasibleSwap(sol, i1, i2, ja, jb, qa, qb, delta))
                             continue;
-
                         if (delta < -1e-9) {
                             applySwap(sol, {i1, i2, ja, jb, qa, qb, delta});
                             return true;
@@ -158,6 +159,9 @@ private:
         if (rjb_after < qa - 1e-9) return false;  // jb no puede absorber i1
 
         // Incompatibilidades: i2 en ja (sin i1)
+        // El incompCount[i2][ja] ya refleja la situación actual.
+        // Si i1 e i2 son incompatibles entre sí, retirar i1 de ja reduce
+        // incompCount[i2][ja] en 1.
         bool i1i2Incompat = isIncompatiblePair(i1, i2);
         int incompat_i2_ja = sol.getIncompCount(i2, ja) - (i1i2Incompat ? 1 : 0);
         int incompat_i1_jb = sol.getIncompCount(i1, jb) - (i1i2Incompat ? 1 : 0);
