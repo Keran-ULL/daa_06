@@ -3,15 +3,12 @@
  * Escuela Superior de Ingeniería y Tecnología
  * Grado en Ingeniería Informática
  * Asignatura: Diseño y Análisis de Algoritmos
- * 
+ *
  * @file   SwapClientesLS.h
- * @brief  Implementación de la clase SwapClientesLS, que representa una
- *        búsqueda local basada en el operador Swap-Clientes(i1, i2) para el problema MS-CFLP-CI.
- * @author  Keran Miranda González
- * @version 1.0
- * @date 2025-06-01
+ * @brief  Búsqueda local basada en el operador Swap-Clientes(i1, i2).
+ * @author Keran Miranda González
+ * @version 2.0
  */
-
 #pragma once
 
 #include "../Plantillas/Algorithm.h"
@@ -19,6 +16,7 @@
 #include "../Solucion/MSCFLPSolution.h"
 
 #include <vector>
+#include <unordered_set>
 #include <limits>
 #include <string>
 
@@ -27,7 +25,7 @@ public:
     enum class ImprovementStrategy { FIRST_IMPROVEMENT, BEST_IMPROVEMENT };
 
     explicit SwapClientesLS(const MSCFLPInstance& inst,
-                            ImprovementStrategy strategy = ImprovementStrategy::BEST_IMPROVEMENT)
+                             ImprovementStrategy strategy = ImprovementStrategy::BEST_IMPROVEMENT)
         : LocalSearch(inst)
         , inst_(inst)
         , strategy_(strategy)
@@ -35,54 +33,57 @@ public:
 
     std::string getName() const override {
         return strategy_ == ImprovementStrategy::BEST_IMPROVEMENT
-               ? "SwapClientesLS (best)"
-               : "SwapClientesLS (first)";
+               ? "SwapClientesLS (best)" : "SwapClientesLS (first)";
     }
 
     void setStrategy(ImprovementStrategy s) { strategy_ = s; }
 
     bool improve(Solution& solution) override {
-        auto& sol = dynamic_cast<MSCFLPSolution&>(solution);
-        bool anyImprovement = false;
-        bool improved = true;
-        while (improved) {
-            improved = applyBestMove(sol);
-            if (improved) anyImprovement = true;
-        }
-        return anyImprovement;
+        return applyBestMove(solution);
     }
 
     bool applyBestMove(Solution& solution) override {
         auto& sol = dynamic_cast<MSCFLPSolution&>(solution);
         return strategy_ == ImprovementStrategy::BEST_IMPROVEMENT
-               ? applyBest(sol)
-               : applyFirst(sol);
+               ? applyBest(sol) : applyFirst(sol);
     }
 
 private:
     const MSCFLPInstance& inst_;
     ImprovementStrategy   strategy_;
+
     struct SwapMove {
-        int    i1, i2;          // clientes a intercambiar
-        int    ja, jb;          // ja = instalación de i1, jb = instalación de i2
-        double qa, qb;          // cantidades (absolutas) a intercambiar
-        double delta;           // ganancia esperada (negativo = mejora)
+        int i1, i2, ja, jb; double qa, qb, delta;
     };
+
+    using IncompatSet = std::vector<std::unordered_set<int>>;
+
+    IncompatSet buildIncompatCache() const {
+        const int n = inst_.getN();
+        IncompatSet cache(n);
+        for (int i = 0; i < n; ++i)
+            for (int nb : inst_.getIncompatibleWith(i))
+                cache[i].insert(nb);
+        return cache;
+    }
 
     bool applyBest(MSCFLPSolution& sol) {
         const int m = inst_.getM();
 
-        SwapMove best;
-        best.delta = -1e-9;
+        IncompatSet incompCache = buildIncompatCache();
+
+        SwapMove best{-1,-1,-1,-1,0,0,-1e-9};
         bool found = false;
 
         for (int ja = 0; ja < m; ++ja) {
             if (!sol.isOpen(ja)) continue;
             const auto& clientsA = sol.getClientsOf(ja);
+            if (clientsA.empty()) continue;
 
             for (int jb = ja + 1; jb < m; ++jb) {
                 if (!sol.isOpen(jb)) continue;
                 const auto& clientsB = sol.getClientsOf(jb);
+                if (clientsB.empty()) continue;
 
                 for (int i1 : clientsA) {
                     const double d1 = inst_.getDemand(i1);
@@ -93,10 +94,10 @@ private:
                         const double qb = sol.getX(i2, jb) * d2;
 
                         double delta;
-                        if (!isFeasibleSwap(sol, i1, i2, ja, jb, qa, qb, delta))
-                            continue;
+                        if (!isFeasible(sol, i1, i2, ja, jb, qa, qb,
+                                        incompCache, delta)) continue;
                         if (delta < best.delta) {
-                            best = {i1, i2, ja, jb, qa, qb, delta};
+                            best = {i1,i2,ja,jb,qa,qb,delta};
                             found = true;
                         }
                     }
@@ -111,14 +112,17 @@ private:
 
     bool applyFirst(MSCFLPSolution& sol) {
         const int m = inst_.getM();
+        IncompatSet incompCache = buildIncompatCache();
 
         for (int ja = 0; ja < m; ++ja) {
             if (!sol.isOpen(ja)) continue;
             const auto& clientsA = sol.getClientsOf(ja);
+            if (clientsA.empty()) continue;
 
             for (int jb = ja + 1; jb < m; ++jb) {
                 if (!sol.isOpen(jb)) continue;
                 const auto& clientsB = sol.getClientsOf(jb);
+                if (clientsB.empty()) continue;
 
                 for (int i1 : clientsA) {
                     const double d1 = inst_.getDemand(i1);
@@ -129,10 +133,10 @@ private:
                         const double qb = sol.getX(i2, jb) * d2;
 
                         double delta;
-                        if (!isFeasibleSwap(sol, i1, i2, ja, jb, qa, qb, delta))
-                            continue;
+                        if (!isFeasible(sol, i1, i2, ja, jb, qa, qb,
+                                        incompCache, delta)) continue;
                         if (delta < -1e-9) {
-                            applySwap(sol, {i1, i2, ja, jb, qa, qb, delta});
+                            applySwap(sol, {i1,i2,ja,jb,qa,qb,delta});
                             return true;
                         }
                     }
@@ -142,53 +146,30 @@ private:
         return false;
     }
 
-    bool isFeasibleSwap(const MSCFLPSolution& sol,
-                        int i1, int i2,
-                        int ja, int jb,
-                        double qa, double qb,
-                        double& delta) const
+    bool isFeasible(const MSCFLPSolution& sol,
+                    int i1, int i2, int ja, int jb,
+                    double qa, double qb,
+                    const IncompatSet& incompCache,
+                    double& delta) const
     {
-        const double d1 = inst_.getDemand(i1);
-        const double d2 = inst_.getDemand(i2);
+        if (sol.getResidualCap(ja) + qa < qb - 1e-9) return false;
+        if (sol.getResidualCap(jb) + qb < qa - 1e-9) return false;
 
-        // Capacidad: después de retirar i1 de ja, ¿cabe i2?
-        double rja_after = sol.getResidualCap(ja) + qa;   // ja libera qa
-        double rjb_after = sol.getResidualCap(jb) + qb;   // jb libera qb
+        bool i1i2Incompat = (incompCache[i1].count(i2) > 0);
+        int adj = i1i2Incompat ? 1 : 0;
 
-        if (rja_after < qb - 1e-9) return false;  // ja no puede absorber i2
-        if (rjb_after < qa - 1e-9) return false;  // jb no puede absorber i1
+        if (sol.getIncompCount(i2, ja) - adj != 0) return false;
+        if (sol.getIncompCount(i1, jb) - adj != 0) return false;
 
-        // Incompatibilidades: i2 en ja (sin i1)
-        // El incompCount[i2][ja] ya refleja la situación actual.
-        // Si i1 e i2 son incompatibles entre sí, retirar i1 de ja reduce
-        // incompCount[i2][ja] en 1.
-        bool i1i2Incompat = isIncompatiblePair(i1, i2);
-        int incompat_i2_ja = sol.getIncompCount(i2, ja) - (i1i2Incompat ? 1 : 0);
-        int incompat_i1_jb = sol.getIncompCount(i1, jb) - (i1i2Incompat ? 1 : 0);
-
-        if (incompat_i2_ja != 0) return false;
-        if (incompat_i1_jb != 0) return false;
-
-        // Cálculo de delta (solo transporte; coste fijo no cambia)
-        delta = d1 * (inst_.getTransportCost(i1, jb) - inst_.getTransportCost(i1, ja))
-              + d2 * (inst_.getTransportCost(i2, ja) - inst_.getTransportCost(i2, jb));
-
+        delta = inst_.getDemand(i1) * (inst_.getTransportCost(i1,jb) - inst_.getTransportCost(i1,ja))
+              + inst_.getDemand(i2) * (inst_.getTransportCost(i2,ja) - inst_.getTransportCost(i2,jb));
         return true;
     }
 
     void applySwap(MSCFLPSolution& sol, const SwapMove& mv) const {
-        // Retirar i1 de ja e i2 de jb
         sol.removeAssignment(mv.i1, mv.ja);
         sol.removeAssignment(mv.i2, mv.jb);
-
-        // Asignar i1 a jb e i2 a ja
         sol.assignDemand(mv.i1, mv.jb, mv.qa);
         sol.assignDemand(mv.i2, mv.ja, mv.qb);
-    }
-
-    bool isIncompatiblePair(int i1, int i2) const {
-        for (int nb : inst_.getIncompatibleWith(i1))
-            if (nb == i2) return true;
-        return false;
     }
 };

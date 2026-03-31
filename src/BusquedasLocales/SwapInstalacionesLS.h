@@ -22,13 +22,15 @@
 #include <algorithm>
 #include <limits>
 #include <string>
+#include <numeric>
 
 class SwapInstalacionesLS : public LocalSearch {
 public:
     enum class ImprovementStrategy { FIRST_IMPROVEMENT, BEST_IMPROVEMENT };
 
     explicit SwapInstalacionesLS(const MSCFLPInstance& inst,
-                                  ImprovementStrategy strategy = ImprovementStrategy::BEST_IMPROVEMENT)
+                                  ImprovementStrategy strategy
+                                      = ImprovementStrategy::BEST_IMPROVEMENT)
         : LocalSearch(inst)
         , inst_(inst)
         , strategy_(strategy)
@@ -43,14 +45,7 @@ public:
     void setStrategy(ImprovementStrategy s) { strategy_ = s; }
 
     bool improve(Solution& solution) override {
-        auto& sol = dynamic_cast<MSCFLPSolution&>(solution);
-        bool anyImprovement = false;
-        bool improved = true;
-        while (improved) {
-            improved = applyBestMove(sol);
-            if (improved) anyImprovement = true;
-        }
-        return anyImprovement;
+        return applyBestMove(solution);
     }
 
     bool applyBestMove(Solution& solution) override {
@@ -64,53 +59,55 @@ private:
     const MSCFLPInstance& inst_;
     ImprovementStrategy   strategy_;
 
-    struct SwapMove {
-        int    jOpen;    // instalación a cerrar
-        int    jClosed;  // instalación a abrir
-        double delta;    // ganancia (negativo = mejora)
-    };
+    struct SwapMove { int jOpen, jClosed; double delta; };
+
+    using ClientOrder = std::vector<std::vector<int>>;
 
     bool applyBest(MSCFLPSolution& sol) {
         const int m = inst_.getM();
-
-        // Listas de instalaciones abiertas y cerradas
         std::vector<int> opened, closed;
+        opened.reserve(m); closed.reserve(m);
         for (int j = 0; j < m; ++j)
             (sol.isOpen(j) ? opened : closed).push_back(j);
+        if (opened.empty() || closed.empty()) return false;
+        ClientOrder sortedByClient = buildClientOrders(sol, opened);
+        std::vector<double> simRes(m, 0.0);
 
-        SwapMove best;
-        best.delta = -1e-9;
+        SwapMove best{-1, -1, -1e-9};
         bool found = false;
 
         for (int jo : opened) {
             for (int jc : closed) {
                 double delta;
-                if (!evaluateSwap(sol, jo, jc, opened, delta)) continue;
-                if (delta < best.delta) {
-                    best = {jo, jc, delta};
-                    found = true;
-                }
+                if (!evaluateSwap(sol, jo, jc, opened, sortedByClient, simRes, delta))
+                    continue;
+                if (delta < best.delta) { best = {jo, jc, delta}; found = true; }
             }
         }
 
         if (!found) return false;
-        executeSwap(sol, best.jOpen, best.jClosed, collectOpenExcept(sol, best.jOpen));
+        executeSwap(sol, best.jOpen, best.jClosed, opened);
         return true;
     }
 
     bool applyFirst(MSCFLPSolution& sol) {
         const int m = inst_.getM();
-
         std::vector<int> opened, closed;
+        opened.reserve(m); closed.reserve(m);
         for (int j = 0; j < m; ++j)
             (sol.isOpen(j) ? opened : closed).push_back(j);
+        if (opened.empty() || closed.empty()) return false;
+
+        ClientOrder sortedByClient = buildClientOrders(sol, opened);
+        std::vector<double> simRes(m, 0.0);
 
         for (int jo : opened) {
             for (int jc : closed) {
                 double delta;
-                if (!evaluateSwap(sol, jo, jc, opened, delta)) continue;
+                if (!evaluateSwap(sol, jo, jc, opened, sortedByClient, simRes, delta))
+                    continue;
                 if (delta < -1e-9) {
-                    executeSwap(sol, jo, jc, collectOpenExcept(sol, jo));
+                    executeSwap(sol, jo, jc, opened);
                     return true;
                 }
             }
@@ -118,70 +115,87 @@ private:
         return false;
     }
 
+    ClientOrder buildClientOrders(const MSCFLPSolution& sol,
+                                   const std::vector<int>& opened) const
+    {
+        const int n = inst_.getN();
+        ClientOrder orders(n);
+        for (int i = 0; i < n; ++i) {
+            if (sol.getFacilitiesOf(i).empty()) continue;
+            orders[i].resize(opened.size());
+            std::iota(orders[i].begin(), orders[i].end(), 0);
+            std::sort(orders[i].begin(), orders[i].end(), [&](int a, int b) {
+                return inst_.getTransportCost(i, opened[a])
+                     < inst_.getTransportCost(i, opened[b]);
+            });
+        }
+        return orders;
+    }
+
     bool evaluateSwap(const MSCFLPSolution& sol,
                       int jOpen, int jClosed,
                       const std::vector<int>& opened,
-                      double& delta) const
+                      const ClientOrder&      sortedByClient,
+                      std::vector<double>&    simRes,
+                      double&                 delta) const
     {
-        // Clientes que hay que reasignar desde jOpen
         const std::vector<int>& clients = sol.getClientsOf(jOpen);
+
         if (clients.empty()) {
-            // jOpen estaba vacía: simplemente cerrarla ahorra su coste fijo
-            // pero abrir jClosed lo incrementa. Solo vale si f[jClosed] < f[jOpen].
             delta = inst_.getFixedCost(jClosed) - inst_.getFixedCost(jOpen);
             return true;
         }
 
-        // Simular capacidades residuales de las instalaciones destino
-        // (jClosed con su capacidad total; el resto con la actual)
+        // Rellenar simRes para los targets (OPTIMIZACIÓN 3)
         std::vector<int> targets;
+        targets.reserve(opened.size());
         targets.push_back(jClosed);
-        for (int j : opened)
-            if (j != jOpen) targets.push_back(j);
-
-        // residualCap simulado (indexado por j directamente)
-        const int m = inst_.getM();
-        std::vector<double> simRes(m);
-        for (int j : targets)
-            simRes[j] = (j == jClosed) ? inst_.getCapacity(jClosed)
-                                       : sol.getResidualCap(j);
-
-        // Para cada cliente de jOpen, buscar mejor instalación destino
-        double deltaTransport = 0.0;
-
-        for (int i : clients) {
-            const double di   = inst_.getDemand(i);
-            const double qi   = sol.getX(i, jOpen) * di;
-            double demRest    = qi;
-
-            // Ordenar targets por c[i][j] ascendente
-            std::vector<std::pair<double,int>> sorted;
-            sorted.reserve(targets.size());
-            for (int j : targets) {
-                if (sol.getIncompCount(i, j) != 0 && j != jClosed) continue;
-                // Para jClosed, recalcular incompatibilidad sin i en jOpen
-                if (j == jClosed) {
-                    // Verificar que los incompatibles de i no están en jClosed
-                    if (sol.getIncompCount(i, jClosed) != 0) continue;
-                }
-                sorted.emplace_back(inst_.getTransportCost(i, j), j);
-            }
-            std::sort(sorted.begin(), sorted.end());
-
-            for (auto& [cost, j] : sorted) {
-                if (demRest <= 1e-9) break;
-                double available = simRes[j];
-                if (available <= 1e-9) continue;
-                double q = std::min(demRest, available);
-                deltaTransport += q * (inst_.getTransportCost(i, j)
-                                      - inst_.getTransportCost(i, jOpen));
-                simRes[j] -= q;
-                demRest   -= q;
-            }
-
-            if (demRest > 1e-9) return false;  // cliente no reasignable → infactible
+        simRes[jClosed] = inst_.getCapacity(jClosed);
+        for (int j : opened) {
+            if (j == jOpen) continue;
+            targets.push_back(j);
+            simRes[j] = sol.getResidualCap(j);
         }
 
+        double deltaTransport = 0.0;
+        bool feasible = true;
+
+        for (int i : clients) {
+            const double qi = sol.getX(i, jOpen) * inst_.getDemand(i);
+            double demRest  = qi;
+
+            // Intentar jClosed primero
+            if (sol.getIncompCount(i, jClosed) == 0 && simRes[jClosed] > 1e-9) {
+                double q = std::min(demRest, simRes[jClosed]);
+                deltaTransport += q * (inst_.getTransportCost(i, jClosed)
+                                     - inst_.getTransportCost(i, jOpen));
+                simRes[jClosed] -= q;
+                demRest         -= q;
+            }
+
+            // Recorrer abiertas en orden de coste (sin sort: ya precalculado)
+            if (demRest > 1e-9 && !sortedByClient[i].empty()) {
+                for (int idx : sortedByClient[i]) {
+                    if (demRest <= 1e-9) break;
+                    int j = opened[idx];
+                    if (j == jOpen || j == jClosed) continue;
+                    if (sol.getIncompCount(i, j) != 0) continue;
+                    if (simRes[j] <= 1e-9) continue;
+                    double q = std::min(demRest, simRes[j]);
+                    deltaTransport += q * (inst_.getTransportCost(i, j)
+                                         - inst_.getTransportCost(i, jOpen));
+                    simRes[j] -= q;
+                    demRest   -= q;
+                }
+            }
+
+            if (demRest > 1e-9) { feasible = false; break; }
+        }
+
+        // Restaurar simRes a 0 (OPTIMIZACIÓN 3)
+        for (int j : targets) simRes[j] = 0.0;
+
+        if (!feasible) return false;
         delta = (inst_.getFixedCost(jClosed) - inst_.getFixedCost(jOpen))
                + deltaTransport;
         return true;
@@ -189,32 +203,28 @@ private:
 
     void executeSwap(MSCFLPSolution& sol,
                      int jOpen, int jClosed,
-                     const std::vector<int>& otherOpen) const
+                     const std::vector<int>& opened) const
     {
-        // Abrir jClosed
         sol.openFacility(jClosed);
 
-        // Reasignar todos los clientes de jOpen
-        std::vector<int> clientsCopy = sol.getClientsOf(jOpen);  // copia: se modifica
+        std::vector<int> clientsCopy = sol.getClientsOf(jOpen);
 
-        // Preparar orden de destinos por coste para cada cliente
-        std::vector<int> targets;
-        targets.push_back(jClosed);
-        for (int j : otherOpen) targets.push_back(j);
+        // Destinos ordenables por cliente
+        std::vector<std::pair<double,int>> targets;
+        targets.reserve(opened.size());
+        targets.emplace_back(0.0, jClosed);
+        for (int j : opened)
+            if (j != jOpen) targets.emplace_back(0.0, j);
 
         for (int i : clientsCopy) {
-            const double di = inst_.getDemand(i);
-            double demRest  = sol.getX(i, jOpen) * di;
-
+            double demRest = sol.getX(i, jOpen) * inst_.getDemand(i);
             sol.removeAssignment(i, jOpen);
 
-            // Ordenar destinos por c[i][j]
-            std::vector<std::pair<double,int>> sorted;
-            for (int j : targets)
-                sorted.emplace_back(inst_.getTransportCost(i, j), j);
-            std::sort(sorted.begin(), sorted.end());
+            for (auto& [cost, j] : targets)
+                cost = inst_.getTransportCost(i, j);
+            std::sort(targets.begin(), targets.end());
 
-            for (auto& [cost, j] : sorted) {
+            for (auto& [cost, j] : targets) {
                 if (demRest <= 1e-9) break;
                 if (sol.getIncompCount(i, j) != 0) continue;
                 double rj = sol.getResidualCap(j);
@@ -225,16 +235,7 @@ private:
             }
         }
 
-        // Cerrar jOpen (debería estar vacía ya)
         if (sol.getClientsOf(jOpen).empty())
             sol.closeFacility(jOpen);
-    }
-
-    std::vector<int> collectOpenExcept(const MSCFLPSolution& sol, int jExclude) const {
-        std::vector<int> result;
-        for (int j = 0; j < inst_.getM(); ++j)
-            if (sol.isOpen(j) && j != jExclude)
-                result.push_back(j);
-        return result;
     }
 };
