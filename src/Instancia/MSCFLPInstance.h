@@ -63,7 +63,7 @@ public:
         int numPairs = parseScalar(content, "Incompatibilities");
         incompatiblePairs_ = parsePairs(content, "IncompatiblePairs");
 
-        // Sanity check: el número de pares debe coincidir con Incompatibilities
+        // el número de pares debe coincidir con Incompatibilities
         if (static_cast<int>(incompatiblePairs_.size()) != numPairs) {
             throw std::runtime_error(
                 "MSCFLPInstance::load: número de pares incompatibles (" +
@@ -236,12 +236,10 @@ private:
      *         Ejemplo: "data/instances/wlp05.dzn" → "wlp05"
      */
     static std::string extractName(const std::string& filepath) {
-        // Encontrar el último separador de directorio
         size_t slashPos = filepath.find_last_of("/\\");
         std::string filename = (slashPos == std::string::npos)
                                ? filepath
                                : filepath.substr(slashPos + 1);
-        // Eliminar extensión
         size_t dotPos = filename.rfind('.');
         if (dotPos != std::string::npos)
             filename = filename.substr(0, dotPos);
@@ -258,11 +256,7 @@ private:
         size_t pos = content.find(pattern);
         if (pos == std::string::npos)
             throw std::runtime_error("MSCFLPInstance: clave '" + key + "' no encontrada");
-
-        // Avanzar hasta después del '='
         pos = content.find('=', pos) + 1;
-
-        // Buscar el ';' de cierre
         size_t end = content.find(';', pos);
         if (end == std::string::npos)
             throw std::runtime_error("MSCFLPInstance: falta ';' tras '" + key + "'");
@@ -288,7 +282,6 @@ private:
      */
     static std::vector<double> parseVector(const std::string& content, const std::string& key) {
         std::string rhs = extractRHS(content, key);
-        // Eliminar corchetes
         size_t lb = rhs.find('['); size_t rb = rhs.rfind(']');
         if (lb == std::string::npos || rb == std::string::npos)
             throw std::runtime_error("MSCFLPInstance: falta '[' o ']' en '" + key + "'");
@@ -326,14 +319,12 @@ private:
             throw std::runtime_error("MSCFLPInstance: formato de matriz inválido en '" + key + "'");
         rhs = rhs.substr(lb + 2, rb - lb - 2);
 
-        // Partir por '|' para obtener las filas
         std::vector<std::vector<double>> matrix;
         matrix.reserve(rows);
 
         std::istringstream ss(rhs);
         std::string rowStr;
         while (std::getline(ss, rowStr, '|')) {
-            // Eliminar espacios y saltos de línea iniciales/finales
             rowStr.erase(0, rowStr.find_first_not_of(" \t\n\r"));
             rowStr.erase(rowStr.find_last_not_of(" \t\n\r") + 1);
             if (rowStr.empty()) continue;
@@ -391,7 +382,7 @@ private:
 
             int i1, i2;
             try {
-                i1 = std::stoi(pairStr.substr(0, comma))    - 1; // → 0-based
+                i1 = std::stoi(pairStr.substr(0, comma))    - 1; 
                 i2 = std::stoi(pairStr.substr(comma + 1))   - 1;
             } catch (...) {
                 throw std::runtime_error(

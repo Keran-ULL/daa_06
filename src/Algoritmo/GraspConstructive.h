@@ -152,24 +152,24 @@ private:
         for (int j = 0; j < m; ++j)
             if (sol.isOpen(j))
                 openFacilities.push_back(j);
-        // Orden aleatorio de clientes (elimina sesgo de índice)
+        // Orden aleatorio de clientes 
         std::vector<int> clientOrder(n);
         std::iota(clientOrder.begin(), clientOrder.end(), 0);
         std::shuffle(clientOrder.begin(), clientOrder.end(), rng_);
         for (int i : clientOrder) {
             double demandaRestante = inst_.getDemand(i);
             while (demandaRestante > 1e-9) {
-                // Filtrar instalaciones: abiertas, compatibles, con capacidad
+                // Filtrar instalaciones
                 std::vector<std::pair<double, int>> feasibleList;
                 feasibleList.reserve(openFacilities.size());
 
                 for (int j : openFacilities) {
-                    if (sol.getIncompCount(i, j) != 0) continue;   // O(1)
+                    if (sol.getIncompCount(i, j) != 0) continue;   
                     double rj = sol.getResidualCap(j);
                     if (rj <= 1e-9) continue;
                     feasibleList.emplace_back(inst_.getTransportCost(i, j), j);
                 }
-                if (feasibleList.empty()) break;  // cliente i no puede cubrirse
+                if (feasibleList.empty()) break;  
                 // Ordenar por coste de transporte c_{ij} ascendente
                 std::sort(feasibleList.begin(), feasibleList.end());
                 // LRC = primeros min(beta, |feasibleList|) candidatos

@@ -1,74 +1,129 @@
-./bin/main 
-
-╔══════════════════════════════════════════════════════╗
-║   MS-CFLP-CI  —  DAA 2025-2026                      ║
-║   Multi-Source Capacitated Facility Location         ║
-║   Problem with Customer Incompatibilities            ║
-╚══════════════════════════════════════════════════════╝
-
-
-┌─ Selecciona algoritmo ──────────────────────────┐
-│  1. Algoritmo Voraz                              │
-│  2. GRASP (constructivo + búsqueda local)        │
-│  0. Salir                                        │
-└──────────────────────────────────────────────────┘
-  Opción: 2
-
-┌─ Modo de ejecución  [GRASP] ─────────┐
-│  1. Instancia individual                         │
-│  2. Benchmark (wlp01-wlp08, tabla a fichero)     │
-│  0. Volver                                       │
-└──────────────────────────────────────────────────┘
-  Opción: 2
-
-  --- Parámetros Benchmark ---
-  Directorio de instancias (ej: instances/): src/Instancias/Public/
-  Fichero de salida (ej: resultados.txt): r.txt
-  Iteraciones GRASP por ejecución (recomendado: 10): 1
-  Ejecuciones por configuración LRC (recomendado: 3): 3
-
-  Búsqueda local en fase de mejora:
-    1. ShiftLS              (reinserción de demanda)
-    2. SwapClientesLS       (intercambio de clientes)
-    3. SwapInstalacionesLS  (cierre/apertura instalación)
-    4. IncompatElimLS       (eliminación incompatibilidades)
-    5. Todas en secuencia
-  Opción: 5
-
 --- Algoritmo Voraz ---
-  wlp01.dzn... Coste=37044  Incomp=0  CPU=0.0048s
-  wlp02.dzn... Coste=70692  Incomp=0  CPU=0.0274s
-  wlp03.dzn... Coste=86783  Incomp=0  CPU=0.0670s
-  wlp04.dzn... Coste=103142  Incomp=0  CPU=0.1465s
-  wlp05.dzn... Coste=129480  Incomp=0  CPU=0.2668s
-  wlp06.dzn... Coste=150852  Incomp=0  CPU=0.4228s
-  wlp07.dzn... Coste=214023  Incomp=0  CPU=1.0670s
-  wlp08.dzn... Coste=249412  Incomp=0  CPU=2.0123s
+  wlp01.dzn... Coste=37044  Incomp=0  CPU=0.0049s
+  wlp02.dzn... Coste=70692  Incomp=0  CPU=0.0271s
+  wlp03.dzn... Coste=86783  Incomp=0  CPU=0.0672s
+  wlp04.dzn... Coste=103142  Incomp=0  CPU=0.1467s
+  wlp05.dzn... Coste=129480  Incomp=0  CPU=0.2706s
+  wlp06.dzn... Coste=150852  Incomp=0  CPU=0.4318s
+  wlp07.dzn... Coste=214023  Incomp=0  CPU=1.0919s
+  wlp08.dzn... Coste=249412  Incomp=0  CPU=2.0378s
 
---- Algoritmo GRASP ---
-  wlp01.dzn  LRC=2  run=1... Coste=31937  Incomp=0  CPU=0.8029s
-  wlp01.dzn  LRC=2  run=2... Coste=31937  Incomp=0  CPU=0.7940s
-  wlp01.dzn  LRC=2  run=3... Coste=31937  Incomp=0  CPU=0.8057s
-  wlp01.dzn  LRC=3  run=1... Coste=31960  Incomp=0  CPU=0.8890s
-  wlp01.dzn  LRC=3  run=2... Coste=31960  Incomp=0  CPU=0.8901s
-  wlp01.dzn  LRC=3  run=3... Coste=31960  Incomp=0  CPU=0.8899s
-  wlp02.dzn  LRC=2  run=1... Coste=61052  Incomp=0  CPU=9.0194s
-  wlp02.dzn  LRC=2  run=2... Coste=61052  Incomp=0  CPU=8.9659s
-  wlp02.dzn  LRC=2  run=3... Coste=61052  Incomp=0  CPU=8.9478s
-  wlp02.dzn  LRC=3  run=1... Coste=60660  Incomp=0  CPU=12.4170s
-  wlp02.dzn  LRC=3  run=2... Coste=60660  Incomp=0  CPU=12.7939s
-  wlp02.dzn  LRC=3  run=3... Coste=60660  Incomp=0  CPU=12.6731s
-  wlp03.dzn  LRC=2  run=1... Coste=77346  Incomp=0  CPU=23.3600s
-  wlp03.dzn  LRC=2  run=2... Coste=77346  Incomp=0  CPU=23.3672s
-  wlp03.dzn  LRC=2  run=3... Coste=77346  Incomp=0  CPU=23.4336s
-  wlp03.dzn  LRC=3  run=1... Coste=76912  Incomp=0  CPU=40.2845s
-  wlp03.dzn  LRC=3  run=2... Coste=76912  Incomp=0  CPU=40.5162s
-  wlp03.dzn  LRC=3  run=3... Coste=76912  Incomp=0  CPU=40.1787s
-  wlp04.dzn  LRC=2  run=1... Coste=95553  Incomp=0  CPU=93.8081s
-  wlp04.dzn  LRC=2  run=2... Coste=95553  Incomp=0  CPU=93.5587s
-  wlp04.dzn  LRC=2  run=3... Coste=95553  Incomp=0  CPU=93.5976s
-  wlp04.dzn  LRC=3  run=1... Coste=96626  Incomp=0  CPU=111.8968s
-  wlp04.dzn  LRC=3  run=2... Coste=96626  Incomp=0  CPU=111.3694s
-  wlp04.dzn  LRC=3  run=3... Coste=96626  Incomp=0  CPU=111.2095s
-  wlp05.dzn  LRC=2  run=1... Coste=121944  Incomp=0  CPU=145.3155s
-  wlp05.dzn  LRC=2  run=2... ^C
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp01.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 32
+  C. Fijo   : 16190.00
+  C. Asig.  : 17504.00
+  C. Total  : 33694.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 0.1563
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp02.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 64
+  C. Fijo   : 33550.00
+  C. Asig.  : 33645.00
+  C. Total  : 67195.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 0.5757
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp03.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 92
+  C. Fijo   : 46240.00
+  C. Asig.  : 36863.00
+  C. Total  : 83103.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 2.4828
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp04.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 120
+  C. Fijo   : 59240.00
+  C. Asig.  : 36991.00
+  C. Total  : 96231.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 9.7576
+  ------------------------------------------------------
+
+    Ejecutando GRASP sobre 'src/Instancias/Public/wlp05.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 154
+  C. Fijo   : 75300.00
+  C. Asig.  : 50546.00
+  C. Total  : 125846.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 9.9192
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp06.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 177
+  C. Fijo   : 82940.00
+  C. Asig.  : 50238.00
+  C. Total  : 133178.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 24.2287
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp07.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 252
+  C. Fijo   : 124450.00
+  C. Asig.  : 76593.00
+  C. Total  : 201043.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 37.2979
+  ------------------------------------------------------
+
+  Ejecutando GRASP sobre 'src/Instancias/Public/wlp08.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=1, alpha=3, beta=1, ls=Todas)
+  |Jopen|   : 309
+  C. Fijo   : 146290.00
+  C. Asig.  : 82758.00
+  C. Total  : 229048.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 111.8632
+  ------------------------------------------------------
+
+  | Instancia | GRASP  | Óptimo | Error     
+| --------- | ------ | ------ | --------- 
+| wlp01     | 33694  | 28716  | 4978  
+| wlp02     | 67195  | 52952  | 14243 
+| wlp03     | 83103  | 64296  | 18807 
+| wlp04     | 96231  | 84633  | 11598 
+| wlp05     | 125846 | 103857 | 21989 
+| wlp06     | 133178 | 111654 | 21524 
+| wlp07     | 201043 | 162277 | 38766 
+| wlp08     | 229048 | 187938 | 41110 
+
+
+Ejecutando GRASP sobre 'src/Instancias/Public/wlp01.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GRASP (iter=100, alpha=3, beta=3, ls=Todas)
+  |Jopen|   : 29
+  C. Fijo   : 15140.00
+  C. Asig.  : 15355.00
+  C. Total  : 30495.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 17.1659
+  ------------------------------------------------------

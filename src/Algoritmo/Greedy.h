@@ -132,9 +132,7 @@ private:
                 if (rj <= 0.0) continue;
                 // --- Asignar q = min(d_i_restante, r_j) ---
                 const double q = std::min(demandaRestante, rj);
-                sol.assignDemand(i, j, q);   // actualiza x, w, residualCap,
-                                             // clientsOf, facilitiesOf,
-                                             // incompCount y transportCost
+                sol.assignDemand(i, j, q);   
                 demandaRestante -= q;
             }
             // Si demandaRestante > 0 aquí, el cliente i no ha sido cubierto

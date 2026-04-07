@@ -35,7 +35,7 @@ public:
         std::string       outputFile    = "resultados.txt";
         int               graspIter     = 10;
         std::vector<int>  lrcSizes      = {2, 3};
-        int               graspRuns     = 3;
+        int               graspRuns     = 1;
         unsigned int      seed          = 42;
         LocalSearchChoice lsChoice      = LocalSearchChoice::ALL;
     };
