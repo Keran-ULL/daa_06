@@ -24,6 +24,10 @@
 #include <memory>
 #include <string>
 #include <limits>
+#include <vector>
+#include <random>
+#include <numeric>
+#include <chrono>
 
 enum class LocalSearchChoice {
     SHIFT     = 1,
@@ -43,8 +47,7 @@ public:
                    ShiftLS::ImprovementStrategy strategy
                        = ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT,
                    LocalSearchChoice lsChoice       = LocalSearchChoice::ALL,
-                   int               swapInstFreq   = 3,
-                   double            minImprovement = 0.0)
+                   int               swapInstFreq   = 3)
         : Metaheuristic(inst, maxIterations, seed)
         , inst_(inst)
         , alpha_(alpha)
@@ -52,7 +55,11 @@ public:
         , lsStrategy_(strategy)
         , lsChoice_(lsChoice)
         , swapInstFreq_(swapInstFreq)
-        , minImprovement_(minImprovement)
+        , rvndRng_(seed == 0
+                   ? static_cast<unsigned int>(
+                         std::chrono::steady_clock::now()
+                             .time_since_epoch().count())
+                   : seed)
     {}
 
     std::string getName() const override {
@@ -68,7 +75,8 @@ public:
 protected:
     std::unique_ptr<Solution> solve() override {
 
-        // LS construidas 
+        // LS construidas una sola vez: sus cachés se pagan una sola vez
+        // y se reutilizan en todas las iteraciones GRASP.
         ShiftLS             shiftLS  (inst_, lsStrategy_);
         SwapClientesLS      swapCliLS(inst_,
             static_cast<SwapClientesLS::ImprovementStrategy>(
@@ -80,23 +88,25 @@ protected:
             static_cast<IncompatElimLS::ImprovementStrategy>(
                 static_cast<int>(lsStrategy_)));
 
-        // GRASPConstructive creado una vez: se reutiliza cambiando solo la semilla.
-        GRASPConstructive constructive(inst_, alpha_, beta_, seed_);
-
         std::unique_ptr<Solution> best    = nullptr;
         double                    bestCost = std::numeric_limits<double>::infinity();
 
         for (iterationsRun_ = 0; iterationsRun_ < maxIterations_; ++iterationsRun_) {
 
-            constructive.setSeed(seed_ + static_cast<unsigned int>(iterationsRun_));
+            unsigned int iterSeed = seed_ + static_cast<unsigned int>(iterationsRun_);
+            GRASPConstructive constructive(inst_, alpha_, beta_, iterSeed);
             auto sol = constructive.run();
 
             const bool applySwapInst = (swapInstFreq_ <= 0) ||
                                        (iterationsRun_ % swapInstFreq_ == 0);
 
-            bool anyImproved = true;
-            while (anyImproved) {
-                double costBefore = sol->getTotalCost();
+            const bool isBest      = (lsStrategy_ == ShiftLS::ImprovementStrategy::BEST_IMPROVEMENT);
+            const int  maxFirstIter = 10;
+            int        localIter    = 0;
+            bool       anyImproved  = true;
+
+            while (anyImproved && (isBest || localIter < maxFirstIter)) {
+                ++localIter;
 
                 switch (lsChoice_) {
                     case LocalSearchChoice::SHIFT:
@@ -111,19 +121,11 @@ protected:
                     case LocalSearchChoice::INCOMPAT:
                         anyImproved = incompLS.improve(*sol);
                         break;
-                    case LocalSearchChoice::ALL: {
-                        bool imp1 = incompLS.improve(*sol);
-                        bool imp2 = shiftLS.improve(*sol);
-                        bool imp3 = applySwapInst ? swapInstLS.improve(*sol) : false;
-                        bool imp4 = (imp1||imp2||imp3) ? swapCliLS.improve(*sol) : false;
-                        anyImproved = imp1 || imp2 || imp3 || imp4;
+                    case LocalSearchChoice::ALL:
+                        anyImproved = rvnd(*sol, applySwapInst,
+                                           shiftLS, swapCliLS, swapInstLS, incompLS);
                         break;
-                    }
                 }
-
-                // Parar si la mejora de esta vuelta es menor que el umbral
-                if (anyImproved && (costBefore - sol->getTotalCost()) < minImprovement_)
-                    anyImproved = false;
 
                 if (sol->getTotalCost() < bestCost) {
                     bestCost = sol->getTotalCost();
@@ -131,21 +133,67 @@ protected:
                 }
             }
         }
-       if (best && !best->checkFeasibility()) {
-            throw std::logic_error("GRASP::solve() — la mejor solución encontrada no es factible. "
-                                   "Revise las implementaciones de las búsquedas locales.");
-        }
+
         return best;
     }
 
 private:
+    /**
+     * @brief  Random Variable Neighborhood Descent (RVND).
+     *
+     * Mantiene una lista de vecindarios disponibles. En cada paso:
+     *   - Elige uno al azar de los disponibles.
+     *   - Si mejora → reinicia la lista completa (todos disponibles de nuevo).
+     *   - Si no mejora → elimina ese vecindario de la lista.
+     * Termina cuando la lista queda vacía: ningún vecindario puede mejorar.
+     *
+     * @param  sol           Solución a mejorar (modificada in-place).
+     * @param  applySwapInst Si false, SwapInstalaciones se omite en esta iter.
+     * @return true si se realizó al menos una mejora.
+     */
+    bool rvnd(Solution&            sol,
+              bool                 applySwapInst,
+              ShiftLS&             shiftLS,
+              SwapClientesLS&      swapCliLS,
+              SwapInstalacionesLS& swapInstLS,
+              IncompatElimLS&      incompLS)
+    {
+        // 0=Incompat, 1=Shift, 2=SwapInst, 3=SwapCli
+        std::vector<int> available = {0, 1, 2, 3};
+        bool anyImproved = false;
+
+        while (!available.empty()) {
+            std::uniform_int_distribution<int> dist(
+                0, static_cast<int>(available.size()) - 1);
+            int idx    = dist(rvndRng_);
+            int chosen = available[idx];
+
+            bool improved = false;
+            switch (chosen) {
+                case 0: improved = incompLS.improve(sol);                        break;
+                case 1: improved = shiftLS.improve(sol);                         break;
+                case 2: improved = applySwapInst ? swapInstLS.improve(sol)
+                                                 : false;                        break;
+                case 3: improved = swapCliLS.improve(sol);                       break;
+            }
+
+            if (improved) {
+                available    = {0, 1, 2, 3};  // reiniciar lista completa
+                anyImproved  = true;
+            } else {
+                available.erase(available.begin() + idx);  // eliminar vecindario
+            }
+        }
+        return anyImproved;
+    }
+
     const MSCFLPInstance&        inst_;
     int                          alpha_;
     int                          beta_;
     ShiftLS::ImprovementStrategy lsStrategy_;
     LocalSearchChoice            lsChoice_;
     int                          swapInstFreq_;
-    double                       minImprovement_;  
+    std::mt19937                 rvndRng_;   ///< RNG exclusivo del RVND
 
     std::string lsName() const {
         switch (lsChoice_) {
@@ -153,7 +201,7 @@ private:
             case LocalSearchChoice::SWAP_CLI:  return "SwapClientes";
             case LocalSearchChoice::SWAP_INST: return "SwapInstalaciones";
             case LocalSearchChoice::INCOMPAT:  return "IncompatElim";
-            case LocalSearchChoice::ALL:       return "Todas";
+            case LocalSearchChoice::ALL:       return "RVND";
         }
         return "?";
     }

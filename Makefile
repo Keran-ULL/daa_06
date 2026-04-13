@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++23 -Wall -g -I./src
+CXXFLAGS = -std=c++17 -Wall -g -I./src
 
 BUILD_DIR = build
 BIN_DIR = bin
