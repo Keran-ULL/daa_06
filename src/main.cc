@@ -28,6 +28,9 @@
 #include <memory>
 #include <stdexcept>
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Imprime en pantalla el resumen de una solución MS-CFLP-CI
+// ─────────────────────────────────────────────────────────────────────────────
 static void printSolution(const MSCFLPSolution& sol,
                            const std::string& algoName,
                            double cpuMs)
@@ -46,6 +49,9 @@ static void printSolution(const MSCFLPSolution& sol,
     Helper::printSeparator();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Flujo: Voraz sobre instancia individual
+// ─────────────────────────────────────────────────────────────────────────────
 static void runGreedySingle() {
     std::string path = Helper::askInstancePath();
     int slack        = Helper::askGreedySlack();
@@ -67,9 +73,13 @@ static void runGreedySingle() {
     printSolution(mSol, greedy.getName(), greedy.getElapsedMs());
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Flujo: GRASP sobre instancia individual
+// ─────────────────────────────────────────────────────────────────────────────
 static void runGRASPSingle() {
     std::string path    = Helper::askInstancePath();
     Helper::GRASPParams p = Helper::askGRASPParams();
+
     MSCFLPInstance inst;
     try {
         inst.load(path);
@@ -77,36 +87,50 @@ static void runGRASPSingle() {
         std::cout << "\n  [ERROR] " << e.what() << "\n";
         return;
     }
+
     Helper::printRunning("GRASP", path);
+
     auto strategy = (p.strategy == Helper::ImprovStrategy::BEST_IMPROVEMENT)
                     ? ShiftLS::ImprovementStrategy::BEST_IMPROVEMENT
                     : ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT;
+
     auto lsChoice = static_cast<LocalSearchChoice>(static_cast<int>(p.lsChoice));
+
     GRASP grasp(inst, p.iterations, p.alpha, p.beta, p.seed, strategy,
                 lsChoice, 3,
                 p.rlAlpha, p.rlEpsilon, p.maxSinMejora, p.maxTotalIter);
     auto sol = grasp.run();
     auto& mSol = dynamic_cast<MSCFLPSolution&>(*sol);
+
     printSolution(mSol, grasp.getName(), grasp.getElapsedMs());
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Flujo: GVNS-RL sobre instancia individual
+// ─────────────────────────────────────────────────────────────────────────────
 static void runGVNSRLSingle() {
     std::string path = Helper::askInstancePath();
     Helper::GVNSRLParams p = Helper::askGVNSRLParams();
+
     MSCFLPInstance inst;
     try { inst.load(path); }
     catch (const std::exception& e) {
         std::cout << "\n  [ERROR] " << e.what() << "\n";
         return;
     }
+
     Helper::printRunning("GVNS-RL", path);
+
     GVNSRL gvns(inst, p.graspIter, p.alpha, p.beta, p.seed,
                 p.maxGVNSIter, p.shakingK,
                 p.rlAlpha, p.rlEpsilon, p.maxSinMejora, p.maxTotalRL,
-                p.epsilonDecay, p.propReward, p.qLogFile);
+                p.epsilonDecay, p.propReward, p.qLogFile,
+                static_cast<GVNSImprovMode>(p.improvMode));
     auto sol = gvns.run();
     auto& mSol = dynamic_cast<MSCFLPSolution&>(*sol);
+
     printSolution(mSol, gvns.getName(), gvns.getElapsedMs());
+
     // Análisis de selección de LS
     const auto& counts = gvns.getSelectionCounts();
     int total = counts[0]+counts[1]+counts[2]+counts[3];
@@ -124,6 +148,7 @@ static void runGVNSRLSingle() {
 }
 static void runBenchmark() {
     Helper::BenchmarkParams bp = Helper::askBenchmarkParams();
+
     BenchmarkRunner::Config cfg;
     cfg.instancesDir = bp.instancesDir;
     cfg.outputFile   = bp.outputFile;
@@ -136,6 +161,7 @@ static void runBenchmark() {
     cfg.rlEpsilon    = bp.rlEpsilon;
     cfg.maxSinMejora = bp.maxSinMejora;
     cfg.maxTotalIter = bp.maxTotalIter;
+
     BenchmarkRunner runner(cfg);
     try {
         runner.runAll();
@@ -149,6 +175,7 @@ static void runBenchmarkGVNS() {
     std::string dir  = Helper::readString("  Directorio de instancias (ej: instances/): ");
     if (!dir.empty() && dir.back() != '/') dir += '/';
     std::string out  = Helper::readString("  Fichero de salida (ej: resultados_gvns.txt): ");
+
     BenchmarkRunner::Config cfg;
     cfg.instancesDir = dir;
     cfg.outputFile   = out;
@@ -161,18 +188,22 @@ static void runBenchmarkGVNS() {
     cfg.epsilonDecay = Helper::readInt("", 1, 100) / 100.0;
     cfg.propReward   = (Helper::readInt("  Recompensa (1=binaria, 2=proporcional): ", 1, 2) == 2);
     cfg.seed         = 42;
+
     // Dos configuraciones de α y ε
     std::cout << "\n  Configuración 1 (ej: α=0.1, ε=0.1):\n";
     std::cout << "    α (ej: 10 = 0.10): ";
     double a1 = Helper::readInt("", 1, 99) / 100.0;
     std::cout << "    ε (ej: 10 = 0.10): ";
     double e1 = Helper::readInt("", 1, 99) / 100.0;
+
     std::cout << "  Configuración 2 (ej: α=0.2, ε=0.2):\n";
     std::cout << "    α (ej: 20 = 0.20): ";
     double a2 = Helper::readInt("", 1, 99) / 100.0;
     std::cout << "    ε (ej: 20 = 0.20): ";
     double e2 = Helper::readInt("", 1, 99) / 100.0;
+
     cfg.rlConfigs = {{a1, e1}, {a2, e2}};
+
     BenchmarkRunner runner(cfg);
     try {
         runner.runAllGVNS();

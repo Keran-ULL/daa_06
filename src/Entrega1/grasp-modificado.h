@@ -3,23 +3,51 @@
  * Escuela Superior de Ingeniería y Tecnología
  * Grado en Ingeniería Informática
  * Asignatura: Diseño y Análisis de Algoritmos
- * 
- * @file   GRASP.h
+ *
+ * @file   GRASP_modificado.h
+ * @brief  GRASP con las dos modificaciones solicitadas en la tarea.
  * @author Keran Miranda González
- * @date   2025-06-01
- * @brief  Implementación del algoritmo GRASP completo para el MS-CFLP-CI
+ * @version 5.0 — Modificación
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * MODIFICACIONES RESPECTO A GRASP.h (v4.0)
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * MODIFICACIÓN 1 — Solución inicial (líneas marcadas con [MOD-1])
+ * ───────────────────────────────────────────────────────────────
+ * ANTES: la solución de partida de cada iteración multiarranque era la
+ *        devuelta por GRASPConstructive (fase constructiva pura, sin mejora).
+ *
+ * AHORA: la solución de partida es la devuelta por el algoritmo GRASP con
+ *        mejora única de SwapClientesLS. Es decir, antes de entrar en el
+ *        RVND reducido se ejecuta un bucle SwapClientes hasta convergencia,
+ *        obteniendo así un punto de partida de mayor calidad.
+ *
+ * MODIFICACIÓN 2 — RVND reducido (líneas marcadas con [MOD-2])
+ * ─────────────────────────────────────────────────────────────
+ * ANTES: el RVND usaba cuatro estructuras de vecindad:
+ *        {IncompatElim, Shift, SwapInstalaciones, SwapClientes}
+ *
+ * AHORA: el RVND usa únicamente dos estructuras:
+ *        {Shift, SwapInstalaciones}
+ *        Se eliminan IncompatElimLS y SwapClientesLS del bucle RVND.
+ *        La lógica de reinicio y eliminación es idéntica a la original,
+ *        adaptada al conjunto reducido {0=Shift, 1=SwapInst}.
+ *
+ * El resto del fichero (constructores, VND, vndRL, lsName, etc.)
+ * permanece sin cambios para facilitar la comparación.
+ * ═══════════════════════════════════════════════════════════════════════
  */
-
 #pragma once
 
 #include "../Plantillas/Algorithm.h"
 #include "../Instancia/MSCFLPInstance.h"
 #include "../Solucion/MSCFLPSolution.h"
-#include "../Algoritmo/GraspConstructive.h"
-#include "../BusquedasLocales/ShiftLS.h"
-#include "../BusquedasLocales/SwapClientesLS.h"
-#include "../BusquedasLocales/SwapInstalacionesLS.h"
-#include "../BusquedasLocales/IncompatElimLS.h"
+#include "../Entrega1/GRASPConstructive.h"
+#include "../Entrega1/ShiftLS.h"
+#include "../Entrega1/SwapClientesLS.h"
+#include "../Entrega1/SwapInstalacionesLS.h"
+#include "../Entrega1/IncompatElimLS.h"
 
 #include <memory>
 #include <string>
@@ -105,16 +133,23 @@ protected:
 
             unsigned int iterSeed = seed_ + static_cast<unsigned int>(iterationsRun_);
 
+            // ─────────────────────────────────────────────────────────────
+            // [MOD-1] SOLUCIÓN INICIAL
+            // ANTES: GRASPConstructive puro (solo fase constructiva).
+            // AHORA: constructivo + converge con SwapClientesLS hasta
+            //        que no hay mejora → solución de mayor calidad inicial.
+            // ─────────────────────────────────────────────────────────────
             GRASPConstructive constructive(inst_, alpha_, beta_, iterSeed);
             auto sol = constructive.run();
 
-            // MODIFICACIÓN
+            // Mejora inicial exclusiva con SwapClientes hasta convergencia
             {
                 bool improved = true;
                 while (improved) {
-                    improved = swapCliLS.improve(*sol);   
+                    improved = swapCliLS.improve(*sol);   // [MOD-1]
                 }
             }
+            // ─────────────────────────────────────────────────────────────
 
             const bool applySwapInst = (swapInstFreq_ <= 0) ||
                                        (iterationsRun_ % swapInstFreq_ == 0);
@@ -141,7 +176,7 @@ protected:
                         anyImproved = incompLS.improve(*sol);
                         break;
                     case LocalSearchChoice::ALL:
-                        // [MOD-2] 
+                        // [MOD-2] RVND reducido: solo {Shift, SwapInst}
                         anyImproved = rvndReducido(*sol, applySwapInst,
                                                    shiftLS, swapInstLS);
                         break;
@@ -166,14 +201,32 @@ protected:
     }
 
 private:
-    
+    // =========================================================================
+    // [MOD-2] RVND REDUCIDO: solo Shift y SwapInstalaciones
+    //
+    // ANTES (rvnd original): disponibles = {0=Incompat, 1=Shift,
+    //                                        2=SwapInst, 3=SwapCli}
+    //
+    // AHORA: disponibles = {0=Shift, 1=SwapInst}
+    //
+    // La lógica es idéntica a la original:
+    //   - Al mejorar: reiniciar la lista completa {0, 1}.
+    //   - Al fallar:  eliminar el vecindario de la lista.
+    //   - Termina cuando la lista queda vacía.
+    //
+    // Se eliminan IncompatElimLS y SwapClientesLS porque:
+    //   - IncompatElim: las incompatibilidades ya se han resuelto en la
+    //     solución inicial (SwapCli las elimina implícitamente).
+    //   - SwapClientes: se usa como mejora inicial exclusiva [MOD-1],
+    //     no dentro del RVND.
+    // =========================================================================
     bool rvndReducido(Solution&            sol,
                       bool                 applySwapInst,
                       ShiftLS&             shiftLS,
                       SwapInstalacionesLS& swapInstLS)
     {
         // Solo dos vecindarios: 0=Shift, 1=SwapInstalaciones
-        std::vector<int> available  = {0, 1};   
+        std::vector<int> available  = {0, 1};   // [MOD-2]
         bool             anyImproved = false;
 
         while (!available.empty()) {
@@ -184,15 +237,15 @@ private:
 
             bool improved = false;
             switch (chosen) {
-                case 0: improved = shiftLS.improve(sol);                    break; 
+                case 0: improved = shiftLS.improve(sol);                    break; // [MOD-2]
                 case 1: improved = applySwapInst
-                                   ? swapInstLS.improve(sol) : false;       break; 
+                                   ? swapInstLS.improve(sol) : false;       break; // [MOD-2]
             }
 
             if (improved) {
                 anyImproved = true;
-                // Reiniciar la lista completa 
-                available = {0, 1};                                          
+                // Reiniciar la lista completa {Shift, SwapInst}
+                available = {0, 1};                                          // [MOD-2]
             } else {
                 available.erase(available.begin() + idx);
             }
@@ -200,7 +253,10 @@ private:
         return anyImproved;
     }
 
-    
+    // =========================================================================
+    // RVND original (sin modificar) — se mantiene para referencia
+    // Se usa solo si lsChoice_ != ALL (los otros modos no se modifican)
+    // =========================================================================
     bool rvnd(Solution&            sol,
               bool                 applySwapInst,
               ShiftLS&             shiftLS,
@@ -245,7 +301,7 @@ private:
     }
 
     // =========================================================================
-    // VND orden fijo 
+    // VND orden fijo (sin modificar)
     // =========================================================================
     bool vnd(Solution&            sol,
              bool                 applySwapInst,
@@ -282,6 +338,9 @@ private:
         return anyImproved;
     }
 
+    // =========================================================================
+    // VND-RL (sin modificar)
+    // =========================================================================
     bool vndRL(Solution&            sol,
                bool                 applySwapInst,
                ShiftLS&             shiftLS,

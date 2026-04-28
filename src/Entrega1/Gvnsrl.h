@@ -56,23 +56,44 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <array>
+
+/**
+ * @brief Estrategia de mejora interna del bucle GVNS.
+ *
+ * Cambiar el modo es tan sencillo como pasar un valor distinto al constructor
+ * o al menú. Todas las variantes comparten el mismo Shaking y la misma
+ * intensificación final BEST.
+ *
+ *  RL_VND      – Q-Learning ε-greedy (comportamiento original)
+ *  SEQUENTIAL  – Incompat → Shift → SwapInst → SwapCli (una pasada completa)
+ *  VND_FIXED   – orden fijo con reinicio al mejorar (VND clásico)
+ *  RVND        – orden aleatorio con reinicio al mejorar
+ */
+enum class GVNSImprovMode {
+    RL_VND     = 1,   ///< Q-Learning ε-greedy          (original)
+    SEQUENTIAL = 2,   ///< Secuencial sin reinicio
+    VND_FIXED  = 3,   ///< VND orden fijo con reinicio
+    RVND       = 4    ///< VND orden aleatorio con reinicio
+};
 
 class GVNSRL : public Metaheuristic {
 public:
     explicit GVNSRL(const MSCFLPInstance& inst,
-                    int          graspIter      = 10,
-                    int          alpha          = 3,
-                    int          beta           = 3,
-                    unsigned int seed           = 0,
-                    int          maxGVNSIter    = 50,
-                    int          shakingK       = 3,
-                    double       rlAlpha        = 0.2,
-                    double       rlEpsilon      = 0.2,
-                    int          maxSinMejora   = 20,
-                    int          maxTotalRL     = 100,
-                    double       epsilonDecay   = 1.0,   ///< λ decaimiento ε (1.0 = sin decaimiento)
-                    bool         propReward     = false, ///< true = recompensa proporcional
-                    std::string  qLogFile       = "")    ///< fichero CSV de evolución Q
+                    int            graspIter    = 10,
+                    int            alpha        = 3,
+                    int            beta         = 3,
+                    unsigned int   seed         = 0,
+                    int            maxGVNSIter  = 50,
+                    int            shakingK     = 3,
+                    double         rlAlpha      = 0.2,
+                    double         rlEpsilon    = 0.2,
+                    int            maxSinMejora = 20,
+                    int            maxTotalRL   = 100,
+                    double         epsilonDecay = 1.0,
+                    bool           propReward   = false,
+                    std::string    qLogFile     = "",
+                    GVNSImprovMode mode         = GVNSImprovMode::RL_VND)
         : Metaheuristic(inst, maxGVNSIter, seed)
         , inst_(inst)
         , graspIter_(graspIter)
@@ -87,6 +108,7 @@ public:
         , epsilonDecay_(epsilonDecay)
         , propReward_(propReward)
         , qLogFile_(qLogFile)
+        , mode_(mode)
         , rng_(seed == 0
                ? static_cast<unsigned int>(
                      std::chrono::steady_clock::now()
@@ -95,11 +117,18 @@ public:
     {}
 
     std::string getName() const override {
-        return "GVNS-RL (gvnsIter=" + std::to_string(maxGVNSIter_)
-             + ", k="  + std::to_string(shakingK_)
-             + ", α="  + std::to_string(rlAlpha_)
-             + ", ε0=" + std::to_string(rlEpsilon0_)
-             + ", λ="  + std::to_string(epsilonDecay_) + ")";
+        std::string modeName;
+        switch (mode_) {
+            case GVNSImprovMode::RL_VND:     modeName = "RL-VND";      break;
+            case GVNSImprovMode::SEQUENTIAL: modeName = "Sequential";   break;
+            case GVNSImprovMode::VND_FIXED:  modeName = "VND-Fixed";    break;
+            case GVNSImprovMode::RVND:       modeName = "RVND";         break;
+        }
+        return "GVNS[" + modeName + "]"
+             + " iter=" + std::to_string(maxGVNSIter_)
+             + " k="    + std::to_string(shakingK_)
+             + " a="    + std::to_string(rlAlpha_)
+             + " e0="   + std::to_string(rlEpsilon0_);
     }
 
     /// Devuelve cuántas veces fue seleccionada cada LS (para análisis)
@@ -108,30 +137,27 @@ public:
 protected:
     std::unique_ptr<Solution> solve() override {
 
-        // Solución inicial con GRASP completo
         GRASP grasp(inst_, graspIter_, alpha_, beta_, seed_,
                     ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT,
                     LocalSearchChoice::ALL);
-        auto best    = grasp.run();
+        auto best      = grasp.run();
         double bestCost = best->getTotalCost();
 
-        // LS con FIRST para el bucle GVNS
+        // LS con FIRST para el bucle GVNS (rápidas → más iteraciones)
         ShiftLS             shiftLS  (inst_, ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT);
         SwapClientesLS      swapCliLS(inst_, SwapClientesLS::ImprovementStrategy::FIRST_IMPROVEMENT);
         SwapInstalacionesLS swapInstLS(inst_, SwapInstalacionesLS::ImprovementStrategy::FIRST_IMPROVEMENT);
         IncompatElimLS      incompLS (inst_, IncompatElimLS::ImprovementStrategy::FIRST_IMPROVEMENT);
 
-        // LS con BEST para la intensificación final
+        // LS con BEST solo para la intensificación final
         ShiftLS             shiftBest  (inst_, ShiftLS::ImprovementStrategy::BEST_IMPROVEMENT);
         SwapClientesLS      swapCliBest(inst_, SwapClientesLS::ImprovementStrategy::BEST_IMPROVEMENT);
         SwapInstalacionesLS swapInstBest(inst_, SwapInstalacionesLS::ImprovementStrategy::BEST_IMPROVEMENT);
         IncompatElimLS      incompBest (inst_, IncompatElimLS::ImprovementStrategy::BEST_IMPROVEMENT);
 
-        // Tabla Q y contadores de selección
         std::vector<double> Q(4, 0.5);
         selectionCounts_.assign(4, 0);
 
-        // Preparar fichero de log CSV si se especificó
         std::ofstream qLog;
         if (!qLogFile_.empty()) {
             qLog.open(qLogFile_);
@@ -142,16 +168,32 @@ protected:
 
         for (iterationsRun_ = 0; iterationsRun_ < maxGVNSIter_; ++iterationsRun_) {
 
-            // Decaimiento de ε: εt = ε0 · λ^t
             double epsilon = rlEpsilon0_
                            * std::pow(epsilonDecay_,
                                       static_cast<double>(iterationsRun_));
-            epsilon = std::max(epsilon, 0.01);  // mínimo 1% exploración
+            epsilon = std::max(epsilon, 0.01);
 
             auto sPrime = best->clone();
             shaking(dynamic_cast<MSCFLPSolution&>(*sPrime));
-            vndRL(*sPrime, Q, epsilon,
-                  shiftLS, swapCliLS, swapInstLS, incompLS);
+
+            switch (mode_) {
+                case GVNSImprovMode::RL_VND:
+                    vndRL(*sPrime, Q, epsilon,
+                          shiftLS, swapCliLS, swapInstLS, incompLS);
+                    break;
+                case GVNSImprovMode::SEQUENTIAL:
+                    sequential(*sPrime,
+                               shiftLS, swapCliLS, swapInstLS, incompLS);
+                    break;
+                case GVNSImprovMode::VND_FIXED:
+                    vndFixed(*sPrime,
+                             shiftLS, swapCliLS, swapInstLS, incompLS);
+                    break;
+                case GVNSImprovMode::RVND:
+                    rvnd(*sPrime,
+                         shiftLS, swapCliLS, swapInstLS, incompLS);
+                    break;
+            }
 
             if (sPrime->getTotalCost() < bestCost) {
                 bestCost = sPrime->getTotalCost();
@@ -159,11 +201,9 @@ protected:
                 std::fill(Q.begin(), Q.end(), 0.5);
             }
 
-            // Registrar estado Q en el CSV
             if (qLog.is_open()) {
                 qLog << std::fixed << std::setprecision(4)
-                     << iterationsRun_ << ","
-                     << epsilon << ","
+                     << iterationsRun_ << "," << epsilon << ","
                      << Q[0] << "," << Q[1] << "," << Q[2] << "," << Q[3] << ","
                      << selectionCounts_[0] << "," << selectionCounts_[1] << ","
                      << selectionCounts_[2] << "," << selectionCounts_[3] << ","
@@ -173,7 +213,7 @@ protected:
 
         if (qLog.is_open()) qLog.close();
 
-        // Intensificación final con BEST
+        // Intensificación final BEST
         bool anyImproved = true;
         while (anyImproved) {
             bool i1 = incompBest.improve(*best);
@@ -188,21 +228,22 @@ protected:
 
 private:
     const MSCFLPInstance& inst_;
-    int          graspIter_;
-    int          alpha_;
-    int          beta_;
-    int          maxGVNSIter_;
-    int          shakingK_;
-    double       rlAlpha_;
-    double       rlEpsilon0_;
-    int          maxSinMejora_;
-    int          maxTotalRL_;
-    double       epsilonDecay_;
-    bool         propReward_;
-    std::string  qLogFile_;
-    std::mt19937 rng_;
+    int            graspIter_;
+    int            alpha_;
+    int            beta_;
+    int            maxGVNSIter_;
+    int            shakingK_;
+    double         rlAlpha_;
+    double         rlEpsilon0_;
+    int            maxSinMejora_;
+    int            maxTotalRL_;
+    double         epsilonDecay_;
+    bool           propReward_;
+    std::string    qLogFile_;
+    GVNSImprovMode mode_;
+    std::mt19937   rng_;
 
-    mutable std::vector<int> selectionCounts_;  ///< veces que se eligió cada LS
+    mutable std::vector<int> selectionCounts_;
 
     // =========================================================================
     // Shaking
@@ -269,8 +310,113 @@ private:
     }
 
     // =========================================================================
-    // VND-RL con ε variable, recompensa proporcional y contadores
+    // MODO 2: Secuencial — una pasada completa en orden fijo sin reinicio
+    //   Incompat → Shift → SwapInst → SwapCli
+    //   Útil como baseline para comparar con el VND-RL.
     // =========================================================================
+    void sequential(Solution&            sol,
+                    ShiftLS&             shiftLS,
+                    SwapClientesLS&      swapCliLS,
+                    SwapInstalacionesLS& swapInstLS,
+                    IncompatElimLS&      incompLS)
+    {
+        int sinMejora = 0;
+        int totalIter = 0;
+
+        // Orden fijo: 0=Incompat, 1=Shift, 2=SwapInst, 3=SwapCli
+        const std::array<int,4> ORDER = {0, 1, 2, 3};
+
+        while (sinMejora < maxSinMejora_ && totalIter < maxTotalRL_) {
+            ++totalIter;
+            bool anyImproved = false;
+
+            for (int chosen : ORDER) {
+                bool improved = false;
+                switch (chosen) {
+                    case 0: improved = incompLS.applyBestMove(sol);  break;
+                    case 1: improved = shiftLS.applyBestMove(sol);   break;
+                    case 2: improved = swapInstLS.applyBestMove(sol);break;
+                    case 3: improved = swapCliLS.applyBestMove(sol); break;
+                }
+                ++selectionCounts_[chosen];
+                if (improved) anyImproved = true;
+            }
+
+            if (anyImproved) sinMejora = 0;
+            else             ++sinMejora;
+        }
+    }
+
+    // =========================================================================
+    // MODO 3: VND orden fijo con reinicio al mejorar
+    //   Al mejorar con LSk se vuelve a LS0; al fallar se avanza a LSk+1.
+    // =========================================================================
+    void vndFixed(Solution&            sol,
+                  ShiftLS&             shiftLS,
+                  SwapClientesLS&      swapCliLS,
+                  SwapInstalacionesLS& swapInstLS,
+                  IncompatElimLS&      incompLS)
+    {
+        // Orden fijo: Incompat(0) → Shift(1) → SwapInst(2) → SwapCli(3)
+        int k         = 0;
+        int totalIter = 0;
+
+        while (k < 4 && totalIter < maxTotalRL_) {
+            ++totalIter;
+            bool improved = false;
+            switch (k) {
+                case 0: improved = incompLS.applyBestMove(sol);  break;
+                case 1: improved = shiftLS.applyBestMove(sol);   break;
+                case 2: improved = swapInstLS.applyBestMove(sol);break;
+                case 3: improved = swapCliLS.applyBestMove(sol); break;
+            }
+            ++selectionCounts_[k];
+
+            if (improved) k = 0;   // reiniciar al principio
+            else          ++k;     // avanzar al siguiente vecindario
+        }
+    }
+
+    // =========================================================================
+    // MODO 4: RVND — orden aleatorio con reinicio al mejorar
+    //   Similar al VND fijo pero el orden se baraja en cada reinicio.
+    // =========================================================================
+    // MODIFICACIÓN
+        void rvnd(Solution&            sol,
+              ShiftLS&             shiftLS,
+              SwapClientesLS&      swapCliLS,
+              SwapInstalacionesLS& swapInstLS,
+              IncompatElimLS&      incompLS)
+    {
+        std::vector<int> available = {0, 1};   
+        std::shuffle(available.begin(), available.end(), rng_);
+        int totalIter = 0;
+ 
+        while (!available.empty() && totalIter < maxTotalRL_) {
+            ++totalIter;
+            int k = available[0];
+ 
+            bool improved = false;
+            switch (k) {
+                case 0: improved = shiftLS.applyBestMove(sol);    break;
+                case 1: improved = swapInstLS.applyBestMove(sol); break;
+            }
+            ++selectionCounts_[k];
+ 
+            if (improved) {
+                // Reiniciar con los dos vecindarios en orden aleatorio
+                available = {0, 1};
+                std::shuffle(available.begin(), available.end(), rng_);
+            } else {
+                // Eliminar el vecindario que no mejoró
+                available.erase(available.begin());
+            }
+        }
+    }
+
+
+    // =========================================================================
+    // MODO 1 (original): VND-RL con Q-Learning ε-greedy
     void vndRL(Solution&            sol,
                std::vector<double>& Q,
                double               epsilon,

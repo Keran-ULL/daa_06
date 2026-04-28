@@ -135,29 +135,49 @@ struct GVNSRLParams {
     double       epsilonDecay;
     bool         propReward;
     std::string  qLogFile;
+    int          improvMode;  ///< 1=RL_VND, 2=Sequential, 3=VND_Fixed, 4=RVND
 };
 
 inline GVNSRLParams askGVNSRLParams() {
     GVNSRLParams p;
-    std::cout << "\n  --- Parámetros GVNS-RL ---\n";
+    std::cout << "\n  --- Parámetros GVNS ---\n";
     std::cout << "  [Fase GRASP inicial]\n";
     p.graspIter = readInt("  Iteraciones GRASP (recomendado: 5-10): ", 1, 1000);
-    p.alpha     = readInt("  Tamaño LRC fase 1 / alpha (2-5): ", 1, 20);
-    p.beta      = readInt("  Tamaño LRC fase 2 / beta  (2-5): ", 1, 20);
+    p.alpha     = readInt("  LRC alpha (2-5): ", 1, 20);
+    p.beta      = readInt("  LRC beta  (2-5): ", 1, 20);
     std::cout << "  Semilla RNG (0 = aleatoria): ";
     p.seed      = static_cast<unsigned int>(readInt("", 0, 999999));
 
     std::cout << "  [Bucle GVNS]\n";
-    p.maxGVNSIter = readInt("  Iteraciones GVNS (recomendado: 50): ", 1, 10000);
-    p.shakingK    = readInt("  Instalaciones a cerrar en Shaking (recomendado: 3): ", 1, 20);
+    p.maxGVNSIter = readInt("  Iteraciones GVNS (recomendado: 200-500): ", 1, 100000);
+    p.shakingK    = readInt("  Instalaciones a cerrar en Shaking (recomendado: 3-12): ", 1, 50);
 
-    std::cout << "  [VND con RL]\n";
-    std::cout << "  Tasa de aprendizaje α (recomendado: 20 = 0.20): ";
-    p.rlAlpha     = readInt("", 1, 99) / 100.0;
-    std::cout << "  Exploración ε (recomendado: 20 = 0.20): ";
-    p.rlEpsilon   = readInt("", 1, 99) / 100.0;
-    p.maxSinMejora = readInt("  Pasos sin mejora para parar VND-RL (recomendado: 20): ", 1, 1000);
-    p.maxTotalRL   = readInt("  Máximo de pasos totales VND-RL (recomendado: 100): ", 1, 10000);
+    std::cout << "  [Estrategia de mejora interna]\n"
+              << "    1. RL-VND      (Q-Learning e-greedy, original)\n"
+              << "    2. Sequential  (Incompat->Shift->SwapInst->SwapCli)\n"
+              << "    3. VND-Fixed   (orden fijo con reinicio al mejorar)\n"
+              << "    4. RVND        (orden aleatorio con reinicio al mejorar)\n";
+    p.improvMode = readInt("  Opcion: ", 1, 4);
+
+    if (p.improvMode == 1) {
+        std::cout << "  [Parametros RL]\n";
+        std::cout << "  Tasa aprendizaje alpha (ej: 20 = 0.20): ";
+        p.rlAlpha      = readInt("", 1, 99) / 100.0;
+        std::cout << "  Exploracion epsilon (ej: 20 = 0.20): ";
+        p.rlEpsilon    = readInt("", 1, 99) / 100.0;
+        std::cout << "  Decaimiento lambda (100=sin decay, 95=5% por iter): ";
+        p.epsilonDecay = readInt("", 1, 100) / 100.0;
+        p.maxSinMejora = readInt("  Pasos sin mejora (recomendado: 20): ", 1, 1000);
+        p.maxTotalRL   = readInt("  Maximo pasos totales (recomendado: 100): ", 1, 10000);
+        std::cout << "  Recompensa (1=binaria, 2=proporcional): ";
+        p.propReward = (readInt("", 1, 2) == 2);
+        p.qLogFile   = readString("  Fichero CSV para evolucion Q (Enter=no guardar): ");
+    } else {
+        p.maxSinMejora = readInt("  Pasos sin mejora para parar (recomendado: 20): ", 1, 1000);
+        p.maxTotalRL   = readInt("  Maximo pasos por iteracion GVNS (recomendado: 100): ", 1, 10000);
+        p.rlAlpha = 0.2; p.rlEpsilon = 0.2; p.epsilonDecay = 1.0;
+        p.propReward = false; p.qLogFile = "";
+    }
     return p;
 }
 
