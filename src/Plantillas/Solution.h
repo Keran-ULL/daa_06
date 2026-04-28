@@ -16,17 +16,38 @@
  * @date 2025-06-01
  */
 
-#pragma once
+ #pragma once
 
 #include "Instance.h"
 
+#include <memory>
 #include <string>
 #include <limits>
 #include <stdexcept>
 
-
+/**
+ * @file   Solution.h
+ * @brief  Clase abstracta que representa una solución genérica para un
+ *         problema de optimización combinatoria.
+ *
+ * Modela el estado de una solución junto con su coste y su factibilidad.
+ * Las subclases concretas añaden las estructuras de datos específicas
+ * del problema (vectores de asignación, flags de apertura, etc.).
+ *
+ * Responsabilidades de esta clase:
+ *  - Almacenar y exponer el coste total de la solución.
+ *  - Guardar una referencia a la instancia que resuelve (nunca null).
+ *  - Ofrecer operaciones de copia y comparación polimórficas.
+ *  - Definir la interfaz de evaluación y verificación de factibilidad.
+ *
+ * @author  DAA 2025-2026
+ * @version 1.0
+ */
 class Solution {
 public:
+    // -------------------------------------------------------------------------
+    // Constructor / destructor
+    // -------------------------------------------------------------------------
 
     /**
      * @brief  Constructor base.
@@ -47,6 +68,10 @@ public:
     Solution& operator=(const Solution&) = default;
     Solution(Solution&&)                 = default;
     Solution& operator=(Solution&&)      = default;
+
+    // -------------------------------------------------------------------------
+    // Interfaz pública abstracta
+    // -------------------------------------------------------------------------
 
     /**
      * @brief  Evalúa (o re-evalúa) la solución y actualiza totalCost_.
@@ -83,6 +108,10 @@ public:
      */
     virtual std::string toString() const = 0;
 
+    // -------------------------------------------------------------------------
+    // Getters / setters comunes
+    // -------------------------------------------------------------------------
+
     /** @brief Coste total de la solución (∞ si no ha sido evaluada). */
     double getTotalCost() const { return totalCost_; }
 
@@ -106,6 +135,9 @@ public:
     }
 
 protected:
+    // -------------------------------------------------------------------------
+    // Estado interno protegido
+    // -------------------------------------------------------------------------
 
     /** Referencia a la instancia (inmutable durante la vida del objeto). */
     const Instance& instance_;

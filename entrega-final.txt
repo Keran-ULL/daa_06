@@ -1,0 +1,158 @@
+  Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp01.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=500, k=3, α=0.200000, ε=0.200000)
+  |Jopen|   : 27
+  C. Fijo   : 14370.00
+  C. Asig.  : 15003.00
+  C. Total  : 29373.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 159.8956
+  ------------------------------------------------------
+
+  Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp02.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=500, k=3, α=0.200000, ε=0.200000)
+  |Jopen|   : 58
+  C. Fijo   : 31710.00
+  C. Asig.  : 23653.00
+  C. Total  : 55363.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 573.5082
+  ------------------------------------------------------
+
+  Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp03.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=500, k=3, α=0.200000, ε=0.200000)
+  |Jopen|   : 82
+  C. Fijo   : 41370.00
+  C. Asig.  : 27644.00
+  C. Total  : 69014.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 1139.2158
+  ------------------------------------------------------
+
+Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp04.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=500, k=3, α=0.200000, ε=0.200000)
+  |Jopen|   : 115
+  C. Fijo   : 56790.00
+  C. Asig.  : 32527.00
+  C. Total  : 89317.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 2083.9132
+  ------------------------------------------------------
+
+Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp01.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=300, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 27
+  C. Fijo   : 14350.00
+  C. Asig.  : 15717.00
+  C. Total  : 30067.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 38.7031
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 174 veces (0.6%)
+  Shift               : 15242 veces (51.5%)
+  SwapInstalaciones   : 2997 veces (10.1%)
+  SwapClientes        : 11201 veces (37.8%)
+
+Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp02.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=300, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 59
+  C. Fijo   : 31810.00
+  C. Asig.  : 27230.00
+  C. Total  : 59040.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 163.2593
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 107 veces (0.4%)
+  Shift               : 14702 veces (49.1%)
+  SwapInstalaciones   : 827 veces (2.8%)
+  SwapClientes        : 14309 veces (47.8%)
+
+
+ Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp03.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=300, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 82
+  C. Fijo   : 40920.00
+  C. Asig.  : 29090.00
+  C. Total  : 70010.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 1072.5104
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 505 veces (0.7%)
+  Shift               : 38837 veces (50.9%)
+  SwapInstalaciones   : 4631 veces (6.1%)
+  SwapClientes        : 32337 veces (42.4%)
+
+  Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp04.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=100, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 115
+  C. Fijo   : 58220.00
+  C. Asig.  : 35843.00
+  C. Total  : 94063.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 574.1280
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 35 veces (0.4%)
+  Shift               : 2750 veces (27.6%)
+  SwapInstalaciones   : 204 veces (2.0%)
+  SwapClientes        : 6988 veces (70.0%)
+
+  Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp05.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=50, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 146
+  C. Fijo   : 71200.00
+  C. Asig.  : 47978.00
+  C. Total  : 119178.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 572.7731
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 17 veces (0.3%)
+  Shift               : 2178 veces (43.6%)
+  SwapInstalaciones   : 42 veces (0.8%)
+  SwapClientes        : 2763 veces (55.3%)  
+
+   Ejecutando GVNS-RL sobre 'src/Instancias/Public/wlp08.dzn'...
+  ------------------------------------------------------
+  Algoritmo : GVNS-RL (gvnsIter=100, k=3, α=0.200000, ε0=0.200000, λ=0.000000)
+  |Jopen|   : 301
+  C. Fijo   : 142560.00
+  C. Asig.  : 75293.00
+  C. Total  : 217853.00
+  Incomp.   : 0
+  Factible  : Sí
+  CPU (s)   : 5462.5106
+  ------------------------------------------------------
+
+  --- Análisis de selección LS ---
+  IncompatElim        : 30 veces (0.3%)
+  Shift               : 423 veces (4.2%)
+  SwapInstalaciones   : 59 veces (0.6%)
+  SwapClientes        : 9488 veces (94.9%)
+
+  

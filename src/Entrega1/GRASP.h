@@ -34,7 +34,9 @@ enum class LocalSearchChoice {
     SWAP_CLI  = 2,
     SWAP_INST = 3,
     INCOMPAT  = 4,
-    ALL       = 5
+    ALL       = 5,   ///< RVND
+    VND       = 6,   ///< VND orden fijo
+    GVNS_RL   = 7    ///< GVNS con Reinforcement Learning
 };
 
 class GRASP : public Metaheuristic {
@@ -47,7 +49,11 @@ public:
                    ShiftLS::ImprovementStrategy strategy
                        = ShiftLS::ImprovementStrategy::FIRST_IMPROVEMENT,
                    LocalSearchChoice lsChoice       = LocalSearchChoice::ALL,
-                   int               swapInstFreq   = 3)
+                   int               swapInstFreq   = 3,
+                   double            rlAlpha        = 0.2,
+                   double            rlEpsilon      = 0.2,
+                   int               maxSinMejora   = 20,
+                   int               maxTotalIter   = 100)
         : Metaheuristic(inst, maxIterations, seed)
         , inst_(inst)
         , alpha_(alpha)
@@ -55,6 +61,10 @@ public:
         , lsStrategy_(strategy)
         , lsChoice_(lsChoice)
         , swapInstFreq_(swapInstFreq)
+        , rlAlpha_(rlAlpha)
+        , rlEpsilon_(rlEpsilon)
+        , maxSinMejora_(maxSinMejora)
+        , maxTotalIter_(maxTotalIter)
         , rvndRng_(seed == 0
                    ? static_cast<unsigned int>(
                          std::chrono::steady_clock::now()
@@ -75,8 +85,6 @@ public:
 protected:
     std::unique_ptr<Solution> solve() override {
 
-        // LS construidas una sola vez: sus cachés se pagan una sola vez
-        // y se reutilizan en todas las iteraciones GRASP.
         ShiftLS             shiftLS  (inst_, lsStrategy_);
         SwapClientesLS      swapCliLS(inst_,
             static_cast<SwapClientesLS::ImprovementStrategy>(
@@ -125,6 +133,14 @@ protected:
                         anyImproved = rvnd(*sol, applySwapInst,
                                            shiftLS, swapCliLS, swapInstLS, incompLS);
                         break;
+                    case LocalSearchChoice::VND:
+                        anyImproved = vnd(*sol, applySwapInst,
+                                          shiftLS, swapCliLS, swapInstLS, incompLS);
+                        break;
+                    case LocalSearchChoice::GVNS_RL:
+                        anyImproved = vndRL(*sol, applySwapInst,
+                                            shiftLS, swapCliLS, swapInstLS, incompLS);
+                        break;
                 }
 
                 if (sol->getTotalCost() < bestCost) {
@@ -158,9 +174,9 @@ private:
               SwapInstalacionesLS& swapInstLS,
               IncompatElimLS&      incompLS)
     {
-        // 0=Incompat, 1=Shift, 2=SwapInst, 3=SwapCli
-        std::vector<int> available = {0, 1, 2, 3};
-        bool anyImproved = false;
+        std::vector<int> available   = {0, 1, 2};
+        bool             anyImproved  = false;
+        bool             cheapImproved = false;
 
         while (!available.empty()) {
             std::uniform_int_distribution<int> dist(
@@ -170,18 +186,155 @@ private:
 
             bool improved = false;
             switch (chosen) {
-                case 0: improved = incompLS.improve(sol);                        break;
-                case 1: improved = shiftLS.improve(sol);                         break;
-                case 2: improved = applySwapInst ? swapInstLS.improve(sol)
-                                                 : false;                        break;
-                case 3: improved = swapCliLS.improve(sol);                       break;
+                case 0: improved = incompLS.improve(sol);                  break;
+                case 1: improved = shiftLS.improve(sol);                   break;
+                case 2: improved = applySwapInst
+                                   ? swapInstLS.improve(sol) : false;     break;
+                case 3: improved = swapCliLS.improve(sol);                 break;
             }
 
             if (improved) {
-                available    = {0, 1, 2, 3};  // reiniciar lista completa
-                anyImproved  = true;
+                anyImproved = true;
+                if (chosen != 3) cheapImproved = true;
+                available = cheapImproved
+                            ? std::vector<int>{0, 1, 2, 3}
+                            : std::vector<int>{0, 1, 2};
             } else {
-                available.erase(available.begin() + idx);  // eliminar vecindario
+                available.erase(available.begin() + idx);
+                if (available.empty() && cheapImproved) {
+                    available.push_back(3);
+                    cheapImproved = false;  // una sola oportunidad
+                }
+            }
+        }
+        return anyImproved;
+    }
+
+    /**
+     * @brief  Variable Neighborhood Descent (VND).
+     *
+     * Versión determinista del RVND: los vecindarios se prueban siempre
+     * en el mismo orden fijo (Incompat → Shift → SwapInst → SwapCli).
+     * Si el vecindario k mejora, se reinicia desde el primero (k=0).
+     * Si no mejora, se avanza al siguiente (k+1).
+     * Termina cuando ningún vecindario puede mejorar.
+     *
+     * SwapCli solo se prueba si alguno de los anteriores mejoró en esta
+     * ronda (misma optimización que en el RVND).
+     *
+     * @param  sol           Solución a mejorar (modificada in-place).
+     * @param  applySwapInst Si false, SwapInstalaciones se omite.
+     * @return true si se realizó al menos una mejora.
+     */
+    bool vnd(Solution&            sol,
+             bool                 applySwapInst,
+             ShiftLS&             shiftLS,
+             SwapClientesLS&      swapCliLS,
+             SwapInstalacionesLS& swapInstLS,
+             IncompatElimLS&      incompLS)
+    {
+        // Orden fijo: 0=Incompat, 1=Shift, 2=SwapInst, 3=SwapCli
+        const int nNeighborhoods = 4;
+        bool anyImproved  = false;
+        bool cheapImproved = false;
+        int  k = 0;
+
+        while (k < nNeighborhoods) {
+            if (k == 3 && !cheapImproved) break;
+
+            bool improved = false;
+            switch (k) {
+                case 0: improved = incompLS.improve(sol);                  break;
+                case 1: improved = shiftLS.improve(sol);                   break;
+                case 2: improved = applySwapInst
+                                   ? swapInstLS.improve(sol) : false;     break;
+                case 3: improved = swapCliLS.improve(sol);                 break;
+            }
+
+            if (improved) {
+                anyImproved = true;
+                if (k != 3) cheapImproved = true;
+                k = 0;   // reiniciar desde el primer vecindario
+            } else {
+                ++k;     // avanzar al siguiente
+            }
+        }
+        return anyImproved;
+    }
+
+    /**
+     * @brief  VND con Reinforcement Learning (Q-Learning simplificado).
+     *
+     * Cada búsqueda local LSk tiene un valor Q(LSk) ∈ [0,1] que refleja
+     * su historial de éxito. En cada paso se elige la LS con política
+     * ε-greedy: con probabilidad ε se explora (LS aleatoria), con
+     * probabilidad 1-ε se explota (LS con mayor Q).
+     *
+     * Tras ejecutar LSk:
+     *   r = 1 si mejoró, 0 si no
+     *   Q(LSk) ← Q(LSk) + α·[r - Q(LSk)]
+     *
+     * Criterio de parada: maxSinMejora_ pasos consecutivos sin mejora
+     * o maxTotalIter_ pasos totales.
+     *
+     * Parámetros (guión recomienda α≈0.2, ε≈0.2):
+     *   rlAlpha_    : tasa de aprendizaje α ∈ (0,1)
+     *   rlEpsilon_  : probabilidad de exploración ε ∈ (0,1)
+     *   maxSinMejora_: pasos sin mejora antes de parar
+     *   maxTotalIter_: máximo de pasos totales
+     */
+    bool vndRL(Solution&            sol,
+               bool                 applySwapInst,
+               ShiftLS&             shiftLS,
+               SwapClientesLS&      swapCliLS,
+               SwapInstalacionesLS& swapInstLS,
+               IncompatElimLS&      incompLS)
+    {
+        // Tabla Q: Q[0]=Incompat, Q[1]=Shift, Q[2]=SwapInst, Q[3]=SwapCli
+        std::vector<double> Q(4, 0.5);
+        std::uniform_real_distribution<double> realDist(0.0, 1.0);
+        std::uniform_int_distribution<int>     idxDist(0, 3);
+
+        bool anyImproved    = false;
+        int  sinMejora      = 0;
+        int  totalIter      = 0;
+
+        while (sinMejora < maxSinMejora_ && totalIter < maxTotalIter_) {
+            ++totalIter;
+
+            // Selección ε-greedy
+            int chosen;
+            if (realDist(rvndRng_) < rlEpsilon_) {
+                // Exploración: LS aleatoria
+                chosen = idxDist(rvndRng_);
+            } else {
+                // Explotación: LS con mayor Q
+                chosen = static_cast<int>(
+                    std::max_element(Q.begin(), Q.end()) - Q.begin());
+            }
+
+            // Ejecutar LS elegida
+            bool improved = false;
+            switch (chosen) {
+                case 0: improved = incompLS.improve(sol);                  break;
+                case 1: improved = shiftLS.improve(sol);                   break;
+                case 2: improved = applySwapInst
+                                   ? swapInstLS.improve(sol) : false;     break;
+                case 3: improved = swapCliLS.improve(sol);                 break;
+            }
+
+            // Recompensa binaria: r=1 si mejoró, r=0 si no
+            double r = improved ? 1.0 : 0.0;
+
+            // Actualizar Q: Q(LSk) ← Q(LSk) + α·[r - Q(LSk)]
+            Q[chosen] += rlAlpha_ * (r - Q[chosen]);
+
+            // Actualizar contadores
+            if (improved) {
+                anyImproved = true;
+                sinMejora   = 0;
+            } else {
+                ++sinMejora;
             }
         }
         return anyImproved;
@@ -193,7 +346,11 @@ private:
     ShiftLS::ImprovementStrategy lsStrategy_;
     LocalSearchChoice            lsChoice_;
     int                          swapInstFreq_;
-    std::mt19937                 rvndRng_;   ///< RNG exclusivo del RVND
+    double                       rlAlpha_;       ///< Tasa de aprendizaje Q-Learning
+    double                       rlEpsilon_;     ///< Probabilidad de exploración ε-greedy
+    int                          maxSinMejora_;  ///< Pasos sin mejora antes de parar VND-RL
+    int                          maxTotalIter_;  ///< Máximo de pasos totales VND-RL
+    std::mt19937                 rvndRng_;
 
     std::string lsName() const {
         switch (lsChoice_) {
@@ -202,6 +359,8 @@ private:
             case LocalSearchChoice::SWAP_INST: return "SwapInstalaciones";
             case LocalSearchChoice::INCOMPAT:  return "IncompatElim";
             case LocalSearchChoice::ALL:       return "RVND";
+            case LocalSearchChoice::VND:       return "VND";
+            case LocalSearchChoice::GVNS_RL:   return "GVNS-RL";
         }
         return "?";
     }

@@ -1,0 +1,82 @@
+--- Parámetros Benchmark GVNS-RL ---
+  Directorio de instancias (ej: instances/): src/Instancias/Public
+  Fichero de salida (ej: resultados_gvns.txt): resultados_gvns.txt
+  Iteraciones GRASP inicial (recomendado: 10): 10
+  Iteraciones GVNS (recomendado: 200-500): 300
+  Shaking k (recomendado: 3-12): 3
+  Pasos sin mejora VND-RL (recomendado: 20): 30
+  Máximo pasos totales VND-RL (recomendado: 100): 150
+  Decaimiento ε λ (100=sin decaimiento, 95=decay 5%): 100
+  Recompensa (1=binaria, 2=proporcional): 1
+
+  Configuración 1 (ej: α=0.1, ε=0.1):
+    α (ej: 10 = 0.10): 20
+    ε (ej: 10 = 0.10): 20
+  Configuración 2 (ej: α=0.2, ε=0.2):
+    α (ej: 20 = 0.20): 10
+    ε (ej: 20 = 0.20): 10
+
+--- Algoritmo GVNS-RL ---
+  wlp01.dzn  α=0.2  ε=0.2... Coste=29956  CPU=51.2139s
+  wlp01.dzn  α=0.1000  ε=0.1000... Coste=29938  CPU=57.8881s
+  wlp02.dzn  α=0.2000  ε=0.2000... Coste=57660  CPU=226.2430s
+  wlp02.dzn  α=0.1000  ε=0.1000... Coste=56773  CPU=239.0527s
+  wlp03.dzn  α=0.2000  ε=0.2000... Coste=69711  CPU=513.2269s
+  wlp03.dzn  α=0.1000  ε=0.1000... Coste=70191  CPU=524.7268s
+  wlp04.dzn  α=0.2000  ε=0.2000... Coste=93835  CPU=1123.4484s
+  wlp04.dzn  α=0.1000  ε=0.1000... Coste=90997  CPU=1116.9439s
+  wlp05.dzn  α=0.2000  ε=0.2000... Coste=115319  CPU=1955.3626s
+  wlp05.dzn  α=0.1000  ε=0.1000... Coste=118324  CPU=1733.3162s
+  wlp06.dzn  α=0.2000  ε=0.2000... 
+   wlp06.dzn  α=0.2000  ε=0.2000... Coste=126767  CPU=3167.3479s
+
+Recompensa (1=binaria, 2=proporcional): 2
+
+  Configuración 1 (ej: α=0.1, ε=0.1):
+    α (ej: 10 = 0.10): 20
+    ε (ej: 10 = 0.10): 20
+  Configuración 2 (ej: α=0.2, ε=0.2):
+    α (ej: 20 = 0.20): 10
+    ε (ej: 20 = 0.20): 10
+
+--- Algoritmo GVNS-RL ---
+  wlp01.dzn  α=0.2  ε=0.2... Coste=30024  CPU=50.3786s
+  wlp01.dzn  α=0.1000  ε=0.1000... Coste=30910  CPU=55.2865s
+  wlp02.dzn  α=0.2000  ε=0.2000... Coste=58337  CPU=297.4101s
+  wlp02.dzn  α=0.1000  ε=0.1000... Coste=58230  CPU=332.7940s
+  wlp03.dzn  α=0.2000  ε=0.2000... Coste=71830  CPU=765.0219s
+  wlp03.dzn  α=0.1000  ε=0.1000... Coste=71086  CPU=788.2825s
+  wlp04.dzn  α=0.2000  ε=0.2000... 
+    wlp04.dzn  α=0.1000  ε=0.1000... Coste=94293  CPU=1888.0531s
+  wlp05.dzn  α=0.2000  ε=0.2000... Coste=118707  CPU=3376.9543s
+  wlp05.dzn  α=0.1000  ε=0.1000... Coste=116566  CPU=3485.3200s
+  wlp06.dzn  α=0.2000  ε=0.2000... Coste=128682  CPU=5106.7366s
+
+    Shaking k (recomendado: 3-12): 8
+  Pasos sin mejora VND-RL (recomendado: 20): 20
+  Máximo pasos totales VND-RL (recomendado: 100): 100
+  Decaimiento ε λ (100=sin decaimiento, 95=decay 5%): 100
+  Recompensa (1=binaria, 2=proporcional): 1
+
+  Configuración 1 (ej: α=0.1, ε=0.1):
+    α (ej: 10 = 0.10): 10
+    ε (ej: 10 = 0.10): 10
+  Configuración 2 (ej: α=0.2, ε=0.2):
+    α (ej: 20 = 0.20): 20
+    ε (ej: 20 = 0.20): 20
+
+--- Algoritmo GVNS-RL ---
+  wlp01.dzn  α=0.1  ε=0.1... Coste=30597  CPU=20.0497s
+  wlp01.dzn  α=0.2000  ε=0.2000... Coste=31478  CPU=23.7250s
+  wlp02.dzn  α=0.1000  ε=0.1000... Coste=60489  CPU=142.4693s
+  wlp02.dzn  α=0.2000  ε=0.2000... Coste=59697  CPU=114.3434s
+  wlp03.dzn  α=0.1000  ε=0.1000... Coste=72294  CPU=293.0806s
+  wlp03.dzn  α=0.2000  ε=0.2000... Coste=72381  CPU=232.9089s
+  wlp04.dzn  α=0.1000  ε=0.1000... Coste=96396  CPU=684.2022s
+  wlp04.dzn  α=0.2000  ε=0.2000... 
+  wlp04.dzn  α=0.2000  ε=0.2000... Coste=91837  CPU=841.3583s
+  wlp05.dzn  α=0.1000  ε=0.1000... Coste=119524  CPU=1531.7256s
+  wlp05.dzn  α=0.2000  ε=0.2000... Coste=119370  CPU=1479.2587s
+  wlp06.dzn  α=0.1000  ε=0.1000... Coste=128209  CPU=2127.1262s
+  wlp06.dzn  α=0.2000  ε=0.2000... Coste=126789  CPU=2017.3149s
+  wlp07.dzn  α=0.1000  ε=0.1000... Coste=189906  CPU=6840.5568s

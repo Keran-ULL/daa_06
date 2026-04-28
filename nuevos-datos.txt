@@ -1,0 +1,42 @@
+Decaimiento ε λ (100=sin decaimiento, 95=decay 5%): 100
+  Recompensa (1=binaria, 2=proporcional): 1
+
+  Configuración 1 (ej: α=0.1, ε=0.1):
+    α (ej: 10 = 0.10): 20
+    ε (ej: 10 = 0.10): 30
+  Configuración 2 (ej: α=0.2, ε=0.2):
+    α (ej: 20 = 0.20): 30
+    ε (ej: 20 = 0.20): 20
+
+--- Algoritmo GVNS-RL ---
+  wlp01.dzn  α=0.2  ε=0.3... Coste=30238  CPU=21.3730s
+  wlp01.dzn  α=0.3000  ε=0.2000... Coste=30024  CPU=22.9173s
+  wlp02.dzn  α=0.2000  ε=0.3000... Coste=57745  CPU=129.6088s
+  wlp02.dzn  α=0.3000  ε=0.2000... Coste=57963  CPU=123.1741s
+  wlp03.dzn  α=0.2000  ε=0.3000... Coste=71385  CPU=308.3270s
+  wlp03.dzn  α=0.3000  ε=0.2000... Coste=71541  CPU=292.0831s
+  wlp04.dzn  α=0.2000  ε=0.3000... 
+
+    Fichero de salida (ej: resultados_gvns.txt): resultados-gvns.txt
+  Iteraciones GRASP inicial (recomendado: 10): 10
+  Iteraciones GVNS (recomendado: 200-500): 300
+  Shaking k (recomendado: 3-12): 3
+  Pasos sin mejora VND-RL (recomendado: 20): 30
+  Máximo pasos totales VND-RL (recomendado: 100): 100
+  Decaimiento ε λ (100=sin decaimiento, 95=decay 5%): 90
+  Recompensa (1=binaria, 2=proporcional): 1
+
+  Configuración 1 (ej: α=0.1, ε=0.1):
+    α (ej: 10 = 0.10): 20
+    ε (ej: 10 = 0.10): 20
+  Configuración 2 (ej: α=0.2, ε=0.2):
+    α (ej: 20 = 0.20): 20
+    ε (ej: 20 = 0.20): 20
+
+--- Algoritmo GVNS-RL ---
+  wlp01.dzn  α=0.2  ε=0.2... Coste=30601  CPU=42.1528s
+  wlp01.dzn  α=0.2000  ε=0.2000... Coste=30907  CPU=39.4325s
+  wlp02.dzn  α=0.2000  ε=0.2000... Coste=57422  CPU=167.3340s
+  wlp02.dzn  α=0.2000  ε=0.2000... Coste=59991  CPU=125.8496s
+  wlp03.dzn  α=0.2000  ε=0.2000... Coste=71695  CPU=428.2177s
+  wlp03.dzn  α=0.2000  ε=0.2000... 
